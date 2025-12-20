@@ -104,7 +104,10 @@ class _SignInPageState extends State<SignInPage> {
 
                     // Proceed to main app (demo)
                     Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => MainNavigation()),
+                      MaterialPageRoute(
+                        builder: (_) => MainNavigation(),
+                        settings: RouteSettings(name: "/dashboard"),
+                      ),
                     );
                   },
                   child: Text('Login'),
@@ -115,7 +118,10 @@ class _SignInPageState extends State<SignInPage> {
                 onPressed: () {
                   setState(() {
                     Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => SignUpPage()),
+                      MaterialPageRoute(
+                        builder: (_) => SignUpPage(),
+                        settings: RouteSettings(name: "/signup"),
+                      ),
                     );
                   });
                 },

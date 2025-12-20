@@ -1,14 +1,13 @@
+import 'package:book_hive/main_navigation.dart';
+import 'package:book_hive/pages/sign_up.dart';
 import 'package:book_hive/pages/splash_screen.dart';
 import 'package:flutter/material.dart';
-import 'main_navigation.dart';
-import 'package:book_hive/pages/dashboard/dashboard.dart';
-import 'package:book_hive/pages/sign_up.dart';
 import 'package:book_hive/pages/sign_in.dart';
 import 'package:book_hive/services/app_controller.dart';
 import 'package:book_hive/shared/theme.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/instance_manager.dart';
+import 'package:url_strategy/url_strategy.dart';
 
 // void main() {
 //   runApp(BookHiveApp());
@@ -16,6 +15,9 @@ import 'package:get/instance_manager.dart';
 
 var storage = const FlutterSecureStorage();
 Future<void> main() async {
+  // Remove the hash (#) from web URLs
+  setPathUrlStrategy();
+
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return const Center(child: Text("Ran into an error"));
   };
@@ -39,8 +41,9 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashScreen(),
         // '/': (context) => const Dashboard(),
-        '/dashboard': (context) => const DashboardScreen(),
+        '/dashboard': (context) => const MainNavigation(),
         '/login': (context) => const SignInPage(),
+        '/signup': (context) => const SignUpPage(),
       },
       supportedLocales: const [Locale('en', 'UK')],
       theme: themeData,
