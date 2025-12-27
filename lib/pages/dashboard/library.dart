@@ -3,45 +3,75 @@ import 'package:flutter/material.dart';
 import 'package:book_hive/models/book.dart';
 import 'package:book_hive/models/book_details.dart';
 import 'package:book_hive/trash/testData.dart';
+import 'package:book_hive/services/database.dart';
 import 'package:book_hive/pages/dashboard/pdf_reader_screen.dart';
 import 'package:book_hive/pages/dashboard/audiobook_screen.dart';
 import 'package:book_hive/services/ai_service.dart';
 
-class LibraryScreen extends StatelessWidget {
+class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
 
-  void _showSummarySheet(BuildContext context, Book book) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => _SummarySheet(book: book),
-    );
+  @override
+  State<LibraryScreen> createState() => _LibraryScreenState();
+}
+
+class _LibraryScreenState extends State<LibraryScreen> {
+  final DatabaseService _db = DatabaseService();
+  List<Book> _books = [];
+  bool _loading = true;
+  String? _error;
+  // filter / search state
+  String _searchQuery = '';
+  String _selectedGenre = 'All';
+  String _selectedLanguage = 'All';
+  String _selectedSort = 'Title A-Z';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBooks();
+  }
+
+  Future<void> _loadBooks() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final books = await _db.getBooks();
+      setState(() {
+        _books = books;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      setState(() {
+        _loading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Local state managed via StatefulBuilder to keep the widget stateless as requested
-    String searchQuery = '';
-    String selectedGenre = 'All';
-    String selectedLanguage = 'All';
-    String selectedSort = 'Title A-Z';
-
+    final sourceBooks = _books;
     final genres = [
       'All',
-      ...{for (final b in fakeBooks) b.genre},
+      ...{for (final b in sourceBooks) b.genre},
     ];
     final languages = [
       'All',
-      ...{for (final b in fakeBooks) b.language},
+      ...{for (final b in sourceBooks) b.language},
       'Spanish',
       'French',
       'German',
     ];
 
     List<Book> applyFilters() {
-      final q = searchQuery.toLowerCase();
+      final q = _searchQuery.toLowerCase();
 
-      List<Book> filtered = fakeBooks.where((book) {
+      List<Book> filtered = sourceBooks.where((book) {
         final matchesQuery =
             q.isEmpty ||
             book.title.toLowerCase().contains(q) ||
@@ -53,16 +83,16 @@ class LibraryScreen extends StatelessWidget {
             book.publishedYear.toString().contains(q);
 
         final matchesGenre =
-            selectedGenre == 'All' ||
-            book.genre.toLowerCase() == selectedGenre.toLowerCase();
+            _selectedGenre == 'All' ||
+            book.genre.toLowerCase() == _selectedGenre.toLowerCase();
         final matchesLanguage =
-            selectedLanguage == 'All' ||
-            book.language.toLowerCase() == selectedLanguage.toLowerCase();
+            _selectedLanguage == 'All' ||
+            book.language.toLowerCase() == _selectedLanguage.toLowerCase();
 
         return matchesQuery && matchesGenre && matchesLanguage;
       }).toList();
 
-      switch (selectedSort) {
+      switch (_selectedSort) {
         case 'Title Z-A':
           filtered.sort((a, b) => b.title.compareTo(a.title));
           break;
@@ -78,108 +108,113 @@ class LibraryScreen extends StatelessWidget {
       return filtered;
     }
 
-    return StatefulBuilder(
-      builder: (context, setState) {
-        final books = applyFilters();
-
-        return Scaffold(
-          body: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        decoration: InputDecoration(
-                          hintText:
-                              'Search by title, ISBN, author, genre, language, publisher, year',
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            if (_loading)
+              const Center(child: CircularProgressIndicator())
+            else if (_error != null)
+              Center(child: Text('Error loading books: $_error'))
+            else ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText:
+                            'Search by title, ISBN, author, genre, language, publisher, year',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        onChanged: (value) {
-                          setState(() {
-                            searchQuery = value;
-                          });
-                        },
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    _FilterDropdown(
-                      label: 'Genre',
-                      value: selectedGenre,
-                      items: genres,
-                      width: 200,
-                      onChanged: (val) {
+                      onChanged: (value) {
                         setState(() {
-                          selectedGenre = val;
+                          _searchQuery = value;
                         });
                       },
                     ),
-                    const SizedBox(width: 12),
-                    _FilterDropdown(
-                      label: 'Language',
-                      value: selectedLanguage,
-                      items: languages,
-                      onChanged: (val) {
-                        setState(() {
-                          selectedLanguage = val;
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    _FilterDropdown(
-                      label: 'Sort',
-                      value: selectedSort,
-                      items: const [
-                        'Title A-Z',
-                        'Title Z-A',
-                        'Newest First',
-                        'Oldest First',
-                      ],
-                      width: 200,
-                      onChanged: (val) {
-                        setState(() {
-                          selectedSort = val;
-                        });
-                      },
-                    ),
-                  ],
+                  ),
+                  const SizedBox(width: 12),
+                  _FilterDropdown(
+                    label: 'Genre',
+                    value: _selectedGenre,
+                    items: genres,
+                    width: 200,
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedGenre = val;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  _FilterDropdown(
+                    label: 'Language',
+                    value: _selectedLanguage,
+                    items: languages,
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedLanguage = val;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  _FilterDropdown(
+                    label: 'Sort',
+                    value: _selectedSort,
+                    items: const [
+                      'Title A-Z',
+                      'Title Z-A',
+                      'Newest First',
+                      'Oldest First',
+                    ],
+                    width: 200,
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedSort = val;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    final books = applyFilters();
+                    return books.isEmpty
+                        ? const Center(
+                            child: Text('No books found with current filters'),
+                          )
+                        : GridView.builder(
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  mainAxisExtent: 260,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                ),
+                            itemCount: books.length,
+                            itemBuilder: (context, index) {
+                              final book = books[index];
+                              return _BookCard(book: book);
+                            },
+                          );
+                  },
                 ),
-                const SizedBox(height: 24),
-                Expanded(
-                  child: books.isEmpty
-                      ? const Center(
-                          child: Text('No books found with current filters'),
-                        )
-                      : GridView.builder(
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisExtent: 260,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                              ),
-                          itemCount: books.length,
-                          itemBuilder: (context, index) {
-                            final book = books[index];
-                            return _BookCard(book: book);
-                          },
-                        ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -392,7 +427,11 @@ class _BookCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        LibraryScreen()._showSummarySheet(context, book);
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (context) => _SummarySheet(book: book),
+        );
       },
       child: Card(
         elevation: 1,

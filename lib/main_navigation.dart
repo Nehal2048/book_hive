@@ -4,10 +4,9 @@ import 'package:book_hive/pages/dashboard/dashboard.dart';
 import 'package:book_hive/pages/dashboard/discovery_screen.dart';
 import 'package:book_hive/pages/dashboard/library.dart';
 import 'package:book_hive/pages/dashboard/marketplace.dart';
-import 'package:book_hive/pages/dashboard/pdf_reader_screen.dart';
-import 'package:book_hive/pages/dashboard/audiobook_screen.dart';
 import 'package:book_hive/trash/testData.dart';
 import 'package:flutter/material.dart';
+import 'package:book_hive/services/auth_service.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -146,12 +145,20 @@ void _showAccountSheet(BuildContext context) {
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
     builder: (ctx) => _AccountSheet(
-      onLogout: () {
+      onLogout: () async {
         Navigator.of(ctx).pop();
+        try {
+          await AuthService().signOut();
+        } catch (e) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Sign out failed: $e')));
+          return;
+        }
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Logged out')));
-        // TODO: Wire to real sign-out/navigation as needed
+        Navigator.of(context).pushReplacementNamed('/');
       },
     ),
   );

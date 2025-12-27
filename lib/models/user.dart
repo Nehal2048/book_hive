@@ -55,7 +55,7 @@ class User {
   Map<String, dynamic> toJson() => {
     'email': email,
     'name': name,
-    'join_date': joinDate.toIso8601String(),
+    'join_date': joinDate.toIso8601String().split('T')[0],
     'user_type': userType,
     'buyer_flag': buyerFlag,
     'seller_flag': sellerFlag,

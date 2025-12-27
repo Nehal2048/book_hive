@@ -1,12 +1,15 @@
 import 'package:book_hive/main_navigation.dart';
 import 'package:book_hive/pages/sign_up.dart';
 import 'package:book_hive/pages/splash_screen.dart';
+import 'package:book_hive/services/auth_gate.dart';
+import 'package:book_hive/shared/const.dart';
 import 'package:flutter/material.dart';
 import 'package:book_hive/pages/sign_in.dart';
 import 'package:book_hive/services/app_controller.dart';
 import 'package:book_hive/shared/theme.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/instance_manager.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_strategy/url_strategy.dart';
 
 // void main() {
@@ -24,6 +27,12 @@ Future<void> main() async {
   final AppController c = Get.put(AppController());
   c.token = await storage.read(key: 'token') ?? "";
   c.userID = await storage.read(key: 'userID') ?? "";
+
+  await Supabase.initialize(
+    url: apiCallLinkProductionLogin,
+    anonKey: apiKeySupabase,
+  );
+
   runApp(const MyApp());
 }
 
@@ -39,7 +48,7 @@ class MyApp extends StatelessWidget {
       title: 'Book Hive',
       initialRoute: '/',
       routes: {
-        '/': (context) => const SplashScreen(),
+        '/': (context) => const AuthGate(),
         // '/': (context) => const Dashboard(),
         '/dashboard': (context) => const MainNavigation(),
         '/login': (context) => const SignInPage(),

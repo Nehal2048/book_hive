@@ -1,5 +1,6 @@
 import 'package:book_hive/main_navigation.dart';
 import 'package:book_hive/pages/sign_up.dart';
+import 'package:book_hive/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
 class SignInPage extends StatefulWidget {
@@ -14,6 +15,56 @@ class _SignInPageState extends State<SignInPage> {
   final passwordController = TextEditingController();
   String? _emailError;
   String? _passwordError;
+
+  // get auth service
+  final AuthService authService = AuthService();
+
+  void login() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+
+    if (email.isEmpty) {
+      setState(() {
+        _emailError = 'Email is required';
+      });
+      return;
+    }
+    if (password.isEmpty) {
+      setState(() {
+        _passwordError = 'Password is required';
+      });
+      return;
+    }
+
+    // Attempt to sign in via Supabase auth service
+    try {
+      final response = await authService.signInWithEmailPassword(
+        email,
+        password,
+      );
+      if (response.session == null) {
+        setState(() {
+          _emailError = 'Invalid email or password';
+        });
+        return;
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      }
+      return;
+    }
+
+    // Proceed to main app (demo)
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => MainNavigation(),
+        settings: RouteSettings(name: "/dashboard"),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,46 +135,17 @@ class _SignInPageState extends State<SignInPage> {
               SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // final email = emailController.text.trim();
-                    // final password = passwordController.text;
-
-                    // String? emailErr;
-                    // String? passErr;
-                    // if (email.isEmpty) emailErr = 'Email is required';
-                    // if (password.isEmpty) passErr = 'Password is required';
-
-                    // if (emailErr != null || passErr != null) {
-                    //   setState(() {
-                    //     _emailError = emailErr;
-                    //     _passwordError = passErr;
-                    //   });
-                    //   return;
-                    // }
-
-                    // Proceed to main app (demo)
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (_) => MainNavigation(),
-                        settings: RouteSettings(name: "/dashboard"),
-                      ),
-                    );
-                  },
-                  child: Text('Login'),
-                ),
+                child: ElevatedButton(onPressed: login, child: Text('Login')),
               ),
               SizedBox(height: 8),
               TextButton(
                 onPressed: () {
-                  setState(() {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (_) => SignUpPage(),
-                        settings: RouteSettings(name: "/signup"),
-                      ),
-                    );
-                  });
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => SignUpPage(),
+                      settings: RouteSettings(name: "/signup"),
+                    ),
+                  );
                 },
                 child: Text('Create an account'),
               ),

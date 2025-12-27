@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:book_hive/models/user.dart';
 import 'package:book_hive/pages/sign_in.dart';
+import 'package:book_hive/services/auth_service.dart';
+import 'package:book_hive/services/database.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -34,25 +36,53 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-  void _submit() {
+  // Auth service
+  final AuthService _authService = AuthService();
+
+  void _signUp() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+    final name = nameController.text.trim();
 
     try {
       final user = User(
-        email: emailController.text.trim(),
-        name: nameController.text.trim(),
+        email: email,
+        name: name,
         joinDate: _joinDate,
         userType: _userType,
         buyerFlag: _buyerFlag,
         sellerFlag: _sellerFlag,
       );
 
-      // TODO: integrate with your auth/database service
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Account created for ${user.email}')),
-      );
+      // Create account with Supabase auth
+      final resp = await _authService.signUpWithEmailPassword(email, password);
 
-      // Go back to sign-in after successful signup
+      // If session/user is null, Supabase may require email confirmation.
+      if (resp.user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Sign-up initiated. Check your email to confirm the account.',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Account created for ${user.email}')),
+        );
+      }
+
+      try {
+        await DatabaseService().createUser(user.toJson());
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save user record: $e')),
+        );
+      }
+
+      // Navigate back to sign-in page
       Navigator.of(
         context,
       ).pushReplacement(MaterialPageRoute(builder: (_) => const SignInPage()));
@@ -162,7 +192,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _submit,
+                    onPressed: _signUp,
                     child: const Text('Create Account'),
                   ),
                 ),
@@ -170,7 +200,6 @@ class _SignUpPageState extends State<SignUpPage> {
                 Center(
                   child: TextButton(
                     onPressed: () {
-                      //TODO:
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(builder: (_) => const SignInPage()),
                       );
