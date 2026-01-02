@@ -1,3 +1,4 @@
+import 'package:book_hive/services/database.dart';
 import 'package:flutter/material.dart';
 
 import 'package:book_hive/models/book.dart';
@@ -5,7 +6,6 @@ import 'package:book_hive/models/book_details.dart';
 import 'package:book_hive/trash/testData.dart';
 import 'package:book_hive/pages/misc/pdf_reader_screen.dart';
 import 'package:book_hive/pages/misc/audiobook_screen.dart';
-import 'package:book_hive/services/ai_service.dart';
 import 'package:book_hive/pages/misc/IndividualBook.dart';
 import 'package:book_hive/pages/misc/AddPage.dart';
 import 'package:book_hive/main_navigation.dart';
@@ -262,13 +262,6 @@ class _BookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    BookDetails? details;
-    try {
-      details = fakeBookDetails.firstWhere((d) => d.isbn == book.isbn);
-    } catch (_) {
-      details = null;
-    }
-
     return GestureDetector(
       onTap: () {
         Navigator.of(
@@ -289,8 +282,8 @@ class _BookCard extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: SizedBox(
-                      width: 70,
-                      height: 100,
+                      width: 200 * 0.7,
+                      height: 300 * 0.7,
                       child: book.coverUrl.isNotEmpty
                           ? Image.network(
                               book.coverUrl,
@@ -322,89 +315,74 @@ class _BookCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Chip(
-                          label: Text(book.genre),
-                          backgroundColor: Colors.deepPurple.shade50,
-                          labelStyle: const TextStyle(color: Colors.deepPurple),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 6,
+                          children: [
+                            _InfoChip(
+                              icon: Icons.category_rounded,
+                              label: 'Genre: ${book.genre}',
+                            ),
+                            _InfoChip(
+                              icon: Icons.language,
+                              label: 'Language: ${book.language}',
+                            ),
+                            _InfoChip(
+                              icon: Icons.calendar_today,
+                              label: 'Published: ${book.publishedYear}',
+                            ),
+                            _InfoChip(
+                              icon: Icons.badge,
+                              label: 'ISBN: ${book.isbn}',
+                            ),
+                            _InfoChip(
+                              icon: Icons.account_balance,
+                              label: 'Publisher: ${book.publisher}',
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // Top-right: PDF/Audio links if available
-                  if (details != null)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        if (details.pdfLink.isNotEmpty)
-                          _LinkChip(
-                            icon: Icons.picture_as_pdf,
-                            label: 'PDF',
-                            url: details.pdfLink,
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => PdfReaderScreen(
-                                    bookDetails: details!,
-                                    book: book,
-                                  ),
-                                ),
-                              );
-                            },
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      List<BookDetails> details;
+                      try {
+                        details = await DatabaseService().getBookDetails(
+                          book.isbn,
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Book editions not found: $e'),
+                            backgroundColor: Colors.red,
                           ),
-                        if (details.audioUrl.isNotEmpty)
-                          _LinkChip(
-                            icon: Icons.headphones,
-                            label: 'Audio',
-                            url: details.audioUrl,
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => AudiobookScreen(
-                                    book: book,
-                                    bookDetails: details!,
-                                  ),
-                                ),
-                              );
-                            },
+                        );
+                        details = [];
+                      }
+
+                      final result = await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              AddPage(bookToEdit: book, oldEditions: details),
+                        ),
+                      );
+                      if (result != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Book updated successfully'),
+                            backgroundColor: Colors.green,
                           ),
-                      ],
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Edit'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
                     ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                book.summary,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.grey[700]),
-              ),
-              const SizedBox(height: 12),
-              if (details != null && details.edition.isNotEmpty) ...[
-                _InfoChip(
-                  icon: Icons.layers,
-                  label: 'Edition: ${details.edition}',
-                ),
-                const SizedBox(height: 10),
-              ],
-              const Spacer(),
-              Wrap(
-                spacing: 12,
-                runSpacing: 6,
-                children: [
-                  _InfoChip(
-                    icon: Icons.language,
-                    label: 'Language: ${book.language}',
-                  ),
-                  _InfoChip(
-                    icon: Icons.calendar_today,
-                    label: 'Published: ${book.publishedYear}',
-                  ),
-                  _InfoChip(icon: Icons.badge, label: 'ISBN: ${book.isbn}'),
-                  _InfoChip(
-                    icon: Icons.account_balance,
-                    label: 'Publisher: ${book.publisher}',
                   ),
                 ],
               ),

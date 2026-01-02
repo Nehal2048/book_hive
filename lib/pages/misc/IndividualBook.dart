@@ -1,3 +1,5 @@
+import 'package:book_hive/main_navigation.dart';
+import 'package:book_hive/pages/misc/review_tile.dart';
 import 'package:book_hive/shared/const.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
@@ -360,6 +362,7 @@ class _IndividualBookState extends State<IndividualBook> {
   Widget build(BuildContext context) {
     final currentEmail = AuthService().getUserEmail();
     final List<Review> displayReviews = List<Review>.from(_reviews);
+
     if (currentEmail != null && currentEmail.isNotEmpty) {
       final idx = displayReviews.indexWhere((r) => r.email == currentEmail);
       if (idx > 0) {
@@ -380,8 +383,8 @@ class _IndividualBookState extends State<IndividualBook> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: SizedBox(
-                    width: 120,
-                    height: 170,
+                    width: MediaQuery.of(context).size.width * 0.2,
+                    height: MediaQuery.of(context).size.width * 0.2 * 1.5,
                     child: widget.book.coverUrl.isNotEmpty
                         ? Image.network(widget.book.coverUrl, fit: BoxFit.cover)
                         : Container(
@@ -488,21 +491,114 @@ class _IndividualBookState extends State<IndividualBook> {
                           ),
                         ],
                       ),
+
+                      const SizedBox(height: 16),
+                      Text(
+                        'Summary',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.book.summary,
+                        style: TextStyle(color: Colors.grey[800]),
+                      ),
+                      const SizedBox(height: 8),
+                      Divider(),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Resources',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      if (_loadingDetails)
+                        const Center(child: CircularProgressIndicator())
+                      else if (_details.isEmpty)
+                        Text('No additional resources available')
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _details.length,
+                          itemBuilder: (context, index) {
+                            final detail = _details[index];
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      detail.edition.isNotEmpty
+                                          ? 'Edition: ${detail.edition}'
+                                          : 'Edition ${index + 1}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        if (detail.pdfLink.isNotEmpty)
+                                          ElevatedButton.icon(
+                                            icon: const Icon(
+                                              Icons.picture_as_pdf,
+                                            ),
+                                            label: const Text('Open PDF'),
+                                            onPressed: () =>
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        PdfReaderScreen(
+                                                          bookDetails: detail,
+                                                          book: widget.book,
+                                                        ),
+                                                  ),
+                                                ),
+                                          ),
+                                        if (detail.audioUrl.isNotEmpty)
+                                          ElevatedButton.icon(
+                                            icon: const Icon(Icons.headphones),
+                                            label: const Text('Play Audio'),
+                                            onPressed: () =>
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        AudiobookScreen(
+                                                          book: widget.book,
+                                                          bookDetails: detail,
+                                                        ),
+                                                  ),
+                                                ),
+                                          ),
+                                        if (detail.pdfLink.isEmpty &&
+                                            detail.audioUrl.isEmpty)
+                                          Text(
+                                            'No resources available',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      const SizedBox(height: 8),
+                      Divider(),
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            Text('Summary', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              widget.book.summary,
-              style: TextStyle(color: Colors.grey[800]),
-            ),
-            const SizedBox(height: 8),
-            Divider(),
-            const SizedBox(height: 8),
             Row(
               children: [
                 ElevatedButton.icon(
@@ -522,84 +618,7 @@ class _IndividualBookState extends State<IndividualBook> {
             ],
             const SizedBox(height: 8),
             Divider(),
-            const SizedBox(height: 8),
-            Text('Resources', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            if (_loadingDetails)
-              const Center(child: CircularProgressIndicator())
-            else if (_details.isEmpty)
-              Text('No additional resources available')
-            else
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _details.length,
-                itemBuilder: (context, index) {
-                  final detail = _details[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            detail.edition.isNotEmpty
-                                ? 'Edition: ${detail.edition}'
-                                : 'Edition ${index + 1}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              if (detail.pdfLink.isNotEmpty)
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.picture_as_pdf),
-                                  label: const Text('Open PDF'),
-                                  onPressed: () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => PdfReaderScreen(
-                                        bookDetails: detail,
-                                        book: widget.book,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              if (detail.audioUrl.isNotEmpty)
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.headphones),
-                                  label: const Text('Play Audio'),
-                                  onPressed: () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => AudiobookScreen(
-                                        book: widget.book,
-                                        bookDetails: detail,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              if (detail.pdfLink.isEmpty &&
-                                  detail.audioUrl.isEmpty)
-                                Text(
-                                  'No resources available',
-                                  style: TextStyle(color: Colors.grey[600]),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            const SizedBox(height: 8),
-            Divider(),
-            const SizedBox(height: 8),
+
             // Average Rating Sectionconst SizedBox(height: 20),
             Text('Reviews', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
@@ -750,72 +769,7 @@ class _IndividualBookState extends State<IndividualBook> {
                       .toIso8601String()
                       .split('T')
                       .first;
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: Colors.deepPurple.shade50,
-                            child: Text(
-                              initials,
-                              style: const TextStyle(color: Colors.deepPurple),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        r.email,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      dateLabel,
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                if (r.rating != null)
-                                  Row(
-                                    children: List.generate(
-                                      5,
-                                      (i) => Icon(
-                                        i < (r.rating ?? 0)
-                                            ? Icons.star
-                                            : Icons.star_border,
-                                        size: 16,
-                                        color: Colors.amber,
-                                      ),
-                                    ),
-                                  ),
-                                if (r.reviewText != null &&
-                                    r.reviewText!.isNotEmpty) ...[
-                                  const SizedBox(height: 6),
-                                  Text(r.reviewText!),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
+                  return ReviewTile(r: r, viewBook: false);
                 }).toList(),
               ),
           ],

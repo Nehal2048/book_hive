@@ -3,7 +3,7 @@ import 'package:book_hive/shared/const.dart';
 import 'package:book_hive/shared/styles.dart';
 
 class Loading extends StatelessWidget {
-  const Loading({Key? key}) : super(key: key);
+  const Loading({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +168,7 @@ class DropdownCustom extends StatefulWidget {
   final Function()? onLongPress;
 
   const DropdownCustom({
-    Key? key,
+    super.key,
     this.hintText,
     required this.listOfItems,
     required this.value,
@@ -176,7 +176,7 @@ class DropdownCustom extends StatefulWidget {
     this.onChanged,
     this.enabled = true,
     this.onLongPress,
-  }) : super(key: key);
+  });
 
   @override
   State<DropdownCustom> createState() => _DropdownCustomState();

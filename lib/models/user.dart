@@ -5,6 +5,7 @@ class User {
   final String userType; // 'admin' | 'regular'
   final bool buyerFlag; // default true
   final bool sellerFlag; // default true
+  final double balance;
 
   static const Set<String> allowedUserTypes = {'admin', 'regular'};
 
@@ -15,6 +16,7 @@ class User {
     String userType = 'regular',
     this.buyerFlag = true,
     this.sellerFlag = true,
+    this.balance = 0.0,
   }) : joinDate = joinDate ?? DateTime.now(),
        userType = userType {
     if (email.isEmpty) {
@@ -49,6 +51,7 @@ class User {
       userType: (json['user_type'] as String?) ?? 'regular',
       buyerFlag: (json['buyer_flag'] as bool?) ?? true,
       sellerFlag: (json['seller_flag'] as bool?) ?? true,
+      balance: (json['balance'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -59,12 +62,13 @@ class User {
     'user_type': userType,
     'buyer_flag': buyerFlag,
     'seller_flag': sellerFlag,
+    'balance': balance,
   };
 
   @override
   String toString() {
     return 'User(email: '
         '$email, name: $name, join_date: ${joinDate.toIso8601String()}, '
-        'user_type: $userType, buyer_flag: $buyerFlag, seller_flag: $sellerFlag)';
+        'user_type: $userType, buyer_flag: $buyerFlag, seller_flag: $sellerFlag, balance: $balance)';
   }
 }

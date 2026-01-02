@@ -9,7 +9,10 @@ import 'package:book_hive/models/book_details.dart';
 import 'package:book_hive/services/database.dart';
 
 class AddPage extends StatefulWidget {
-  const AddPage({super.key});
+  final Book? bookToEdit;
+  final List<BookDetails>? oldEditions;
+
+  const AddPage({super.key, this.bookToEdit, this.oldEditions});
 
   @override
   State<AddPage> createState() => _AddPageState();
@@ -31,6 +34,42 @@ class _AddPageState extends State<AddPage> {
   final List<BookDetailsEntry> _details = [];
   bool _lookingUp = false;
   bool _submitting = false;
+  late bool _isEditMode;
+  // local editable copies of old editions
+  final List<BookDetails> _oldEditions = [];
+  final List<_OldEditionEntry> _oldEditionEntries = [];
+  final Set<int> _savingOld = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _isEditMode = widget.bookToEdit != null;
+    if (_isEditMode && widget.bookToEdit != null) {
+      final book = widget.bookToEdit!;
+      _titleCtrl.text = book.title;
+      _authorCtrl.text = book.author;
+      _isbnCtrl.text = book.isbn;
+      _summaryCtrl.text = book.summary;
+      _coverUrlCtrl.text = book.coverUrl;
+      _genreCtrl.text = book.genre;
+      _languageCtrl.text = book.language;
+      _publisherCtrl.text = book.publisher;
+      _yearCtrl.text = book.publishedYear.toString();
+      // initialize old editions entries if provided
+      if (widget.oldEditions != null) {
+        _oldEditions.addAll(widget.oldEditions!);
+        for (var d in _oldEditions) {
+          _oldEditionEntries.add(
+            _OldEditionEntry(
+              edition: d.edition,
+              pdfCtrl: TextEditingController(text: d.pdfLink),
+              audioCtrl: TextEditingController(text: d.audioUrl),
+            ),
+          );
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -46,6 +85,9 @@ class _AddPageState extends State<AddPage> {
     for (var d in _details) {
       d.dispose();
     }
+    for (var e in _oldEditionEntries) {
+      e.dispose();
+    }
     super.dispose();
   }
 
@@ -53,6 +95,122 @@ class _AddPageState extends State<AddPage> {
     setState(() {
       _details.add(BookDetailsEntry());
     });
+  }
+
+  Future<void> _saveOldEdition(int i) async {
+    if (i < 0 || i >= _oldEditions.length) return;
+    setState(() => _savingOld.add(i));
+    try {
+      final isbn = _isbnCtrl.text.trim();
+      final entry = _oldEditionEntries[i];
+      final db = DatabaseService();
+      final updated = await db.updateBookDetail(
+        isbn: isbn,
+        email: AuthService().getUserEmail() ?? "",
+        detail: BookDetails(
+          isbn: isbn,
+          edition: _oldEditions[i].edition,
+          pdfLink: entry.pdfCtrl.text.trim(),
+          audioUrl: entry.audioCtrl.text.trim(),
+        ),
+      );
+      // update local copy
+      _oldEditions[i] = updated;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Edition updated')));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      setState(() => _savingOld.remove(i));
+    }
+  }
+
+  Future<void> _deleteOldEdition(int i) async {
+    if (i < 0 || i >= _oldEditions.length) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text(
+          'Delete Edition',
+          style: TextStyle(color: Colors.black),
+        ),
+        content: const Text('Are you sure you want to delete this edition?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      final isbn = _isbnCtrl.text.trim();
+      final edition = _oldEditionEntries[i].edition;
+      final db = DatabaseService();
+      await db.deleteBookDetail(
+        isbn,
+        edition,
+        AuthService().getUserEmail() ?? "",
+      );
+      setState(() {
+        _oldEditions.removeAt(i);
+        _oldEditionEntries.removeAt(i);
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Edition deleted')));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _uploadEditions() async {
+    if (_details.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No new editions to upload')),
+      );
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      final isbn = _isbnCtrl.text.trim();
+      final db = DatabaseService();
+      for (var e in _details) {
+        final detail = BookDetails(
+          isbn: isbn,
+          edition: e.editionCtrl.text.trim(),
+          pdfLink: e.pdfCtrl.text.trim(),
+          audioUrl: e.audioCtrl.text.trim(),
+        );
+        await db.addBookLink(
+          isbn,
+          detail.toJson(),
+          email: AuthService().getUserEmail(),
+        );
+        widget.oldEditions!.add(detail);
+      }
+      setState(() => _details.clear());
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Editions uploaded')));
+      setState(() {});
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error uploading editions: $e')));
+    } finally {
+      setState(() => _submitting = false);
+    }
   }
 
   void _removeDetail(int i) {
@@ -91,32 +249,23 @@ class _AddPageState extends State<AddPage> {
       );
 
       print("4");
-      // Upload book to database
+      // Upload or update book only (editions are handled separately)
       final db = DatabaseService();
-      await db.addBook(book.toJson(), email: AuthService().getUserEmail());
-
-      print("5");
-      // Upload each book detail/edition
-      for (var e in _details) {
-        final detail = BookDetails(
-          isbn: isbn,
-          edition: e.editionCtrl.text.trim(),
-          pdfLink: e.pdfCtrl.text.trim(),
-          audioUrl: e.audioCtrl.text.trim(),
+      if (_isEditMode) {
+        await db.updateBook(
+          book.isbn,
+          book.toJson(),
+          AuthService().getUserEmail() ?? "",
         );
-        await db.addBookLink(
-          isbn,
-          detail.toJson(),
-          email: AuthService().getUserEmail(),
-        );
-        print("111");
+      } else {
+        await db.addBook(book.toJson(), email: AuthService().getUserEmail());
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Book uploaded successfully')),
         );
-        Navigator.of(context).pop({'book': book, 'details': _details});
+        Navigator.of(context).pop({'book': book});
       }
     } catch (e) {
       if (mounted) {
@@ -174,17 +323,18 @@ class _AddPageState extends State<AddPage> {
       String summary = '';
       if (info.containsKey('notes')) {
         final n = info['notes'];
-        if (n is String)
+        if (n is String) {
           summary = n;
-        else if (n is Map && n.containsKey('value'))
+        } else if (n is Map && n.containsKey('value'))
           summary = n['value'] as String;
       }
       if (summary.isEmpty && info.containsKey('excerpts')) {
         final ex = info['excerpts'] as List<dynamic>?;
         if (ex != null && ex.isNotEmpty) {
           final first = ex.first as Map<String, dynamic>?;
-          if (first != null && first.containsKey('text'))
+          if (first != null && first.containsKey('text')) {
             summary = first['text'] as String;
+          }
         }
       }
       if (summary.isNotEmpty) _summaryCtrl.text = summary;
@@ -229,7 +379,7 @@ class _AddPageState extends State<AddPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Book')),
+      appBar: AppBar(title: Text(_isEditMode ? 'Edit Book' : 'Add Book')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -242,6 +392,7 @@ class _AddPageState extends State<AddPage> {
                 TextFormField(
                   controller: _isbnCtrl,
                   decoration: const InputDecoration(labelText: 'ISBN'),
+                  enabled: !_isEditMode,
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -327,9 +478,102 @@ class _AddPageState extends State<AddPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Book Details / Editions',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                ElevatedButton(
+                  onPressed: _submitting ? null : _submit,
+                  child: _submitting
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Saving...'),
+                          ],
+                        )
+                      : Text(_isEditMode ? 'Update Book' : 'Save Book'),
+                ),
+                const SizedBox(height: 16),
+                if (_oldEditionEntries.isNotEmpty) ...[
+                  const Text(
+                    'Previous Editions',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._oldEditionEntries.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final old = entry.value;
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Edition ${old.edition}'),
+                                Row(
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: _savingOld.contains(i)
+                                          ? null
+                                          : () => _saveOldEdition(i),
+                                      child: _savingOld.contains(i)
+                                          ? const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Text('Save'),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    OutlinedButton(
+                                      onPressed: () => _deleteOldEdition(i),
+                                      child: const Text('  Delete  '),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              initialValue: old.edition,
+                              enabled: false,
+                              decoration: const InputDecoration(
+                                labelText: 'Edition',
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: old.pdfCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'PDF Link',
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: old.audioCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Audio URL',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 12),
+                ],
+                Text(
+                  _isEditMode
+                      ? 'Edit or Add New Editions'
+                      : 'Book Details / Editions',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 ..._details.asMap().entries.map((entry) {
@@ -385,25 +629,13 @@ class _AddPageState extends State<AddPage> {
                       label: const Text('Add Edition'),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(child: Container()),
-                    ElevatedButton(
-                      onPressed: _submitting ? null : _submit,
-                      child: _submitting
-                          ? const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Text('Saving...'),
-                              ],
-                            )
-                          : const Text('Save Book'),
+                    ElevatedButton.icon(
+                      onPressed: _submitting ? null : _uploadEditions,
+                      icon: const Icon(Icons.cloud_upload),
+                      label: const Text('Upload Editions'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                      ),
                     ),
                   ],
                 ),
@@ -424,6 +656,23 @@ class BookDetailsEntry {
 
   void dispose() {
     editionCtrl.dispose();
+    pdfCtrl.dispose();
+    audioCtrl.dispose();
+  }
+}
+
+class _OldEditionEntry {
+  final String edition;
+  final TextEditingController pdfCtrl;
+  final TextEditingController audioCtrl;
+
+  _OldEditionEntry({
+    required this.edition,
+    required this.pdfCtrl,
+    required this.audioCtrl,
+  });
+
+  void dispose() {
     pdfCtrl.dispose();
     audioCtrl.dispose();
   }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:book_hive/shared/const.dart';
 import 'package:book_hive/shared/styles.dart';
-import 'package:get/get_connect/http/src/utils/utils.dart';
 
 const textFontSize = 16.0;
 const spacingNavBar = 40.0;

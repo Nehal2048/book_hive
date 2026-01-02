@@ -1,3 +1,5 @@
+import 'package:book_hive/main_navigation.dart';
+import 'package:book_hive/models/book.dart';
 import 'package:book_hive/shared/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -38,4 +40,15 @@ String formatDate(DateTime date) {
     'December',
   ];
   return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+}
+
+Book? findBookByIsbn(List<Book> books, String isbn, context) {
+  final booksProvider = BooksProvider.of(context);
+  books = booksProvider.books;
+
+  try {
+    return books.firstWhere((b) => b.isbn == isbn);
+  } catch (_) {
+    return null; // return null if book not found
+  }
 }

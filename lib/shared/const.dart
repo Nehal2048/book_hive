@@ -23,3 +23,11 @@ double dashboardSectionHeight = 120;
 double defaultBorderRadius = 15;
 
 List<String> exampleOptions = ["Option 1", "Option 2", "Option 3"];
+
+List<String> bookConditions = [
+  "New",
+  "Like New",
+  "Very Good",
+  "Good",
+  "Acceptable",
+];

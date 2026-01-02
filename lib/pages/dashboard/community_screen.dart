@@ -1,10 +1,10 @@
+import 'package:book_hive/pages/misc/review_tile.dart';
 import 'package:book_hive/shared/shared_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:book_hive/services/database.dart';
 import 'package:book_hive/services/auth_service.dart';
 import 'package:book_hive/models/review.dart';
 import 'package:book_hive/models/book.dart';
-import 'package:book_hive/pages/misc/IndividualBook.dart';
 import 'package:book_hive/main_navigation.dart';
 
 class CommunityScreen extends StatefulWidget {
@@ -20,6 +20,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
   bool _loading = true;
   String? _error;
   bool _showMyReviewsOnly = false;
+  final String currentEmail = AuthService().getUserEmail() ?? '';
 
   @override
   void initState() {
@@ -68,118 +69,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  Future<void> _showEditReviewDialog(Review review) async {
-    final email = AuthService().getUserEmail();
-    if (email == null || email.isEmpty || email != review.email) {
-      return;
-    }
-
-    int rating = review.rating ?? 5;
-    final reviewController = TextEditingController(
-      text: review.reviewText ?? '',
-    );
-    bool saving = false;
-
-    await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Edit Review',
-          style: TextStyle(fontSize: 18, color: Colors.deepPurple),
-        ),
-        content: StatefulBuilder(
-          builder: (context, setState) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (i) {
-                    final idx = i + 1;
-                    return IconButton(
-                      padding: EdgeInsets.zero,
-                      icon: Icon(
-                        idx <= rating ? Icons.star : Icons.star_border,
-                        color: Colors.amber,
-                      ),
-                      onPressed: () => setState(() => rating = idx),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: reviewController,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    hintText: 'Update your review',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              try {
-                await _db.deleteReviewByUserAndBook(email, review.isbn);
-                Navigator.of(ctx).pop(false);
-                await _loadReviews();
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Review deleted')));
-              } catch (e) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
-              }
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final reviewData = {
-                'rating': rating,
-                if (reviewController.text.trim().isNotEmpty)
-                  'review_text': reviewController.text.trim(),
-              };
-
-              try {
-                await _db.updateReviewByUserAndBook(
-                  email,
-                  review.isbn,
-                  reviewData,
-                );
-                Navigator.of(ctx).pop(true);
-                await _loadReviews();
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Review updated')));
-              } catch (e) {
-                Navigator.of(ctx).pop(false);
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    reviewController.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final booksProvider = BooksProvider.of(context);
     final books = booksProvider.books;
-    final currentEmail = AuthService().getUserEmail();
 
     String getBookTitle(String isbn) {
       try {
@@ -189,7 +82,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
       }
     }
 
-    final displayedReviews = _showMyReviewsOnly && currentEmail != null
+    final displayedReviews = _showMyReviewsOnly
         ? _reviews.where((r) => r.email == currentEmail).toList()
         : _reviews;
 
@@ -218,7 +111,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
               ),
               Row(
                 children: [
-                  if (currentEmail != null && currentEmail.isNotEmpty)
+                  if (currentEmail.isNotEmpty)
                     OutlinedButton.icon(
                       onPressed: () => setState(
                         () => _showMyReviewsOnly = !_showMyReviewsOnly,
@@ -280,97 +173,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
                           .join()
                     : 'U';
                 final dateLabel = formatDate(r.createdAt);
-                final isMyReview =
-                    currentEmail != null && r.email == currentEmail;
+                final isMyReview = r.email == currentEmail;
 
-                return Card(
-                  margin: EdgeInsets.only(bottom: 16),
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: Colors.deepPurple.shade100,
-                              child: Text(
-                                initials,
-                                style: TextStyle(color: Colors.deepPurple),
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    r.email,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    dateLabel,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (isMyReview)
-                              ElevatedButton(
-                                onPressed: () => _showEditReviewDialog(r),
-                                child: Text("Edit"),
-                              ),
-                          ],
-                        ),
-                        SizedBox(height: 12),
-                        Row(
-                          children: List.generate(5, (starIndex) {
-                            return Icon(
-                              starIndex < (r.rating ?? 0)
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              color: Colors.amber,
-                              size: 20,
-                            );
-                          }),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Book: ${getBookTitle(r.isbn)}',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(height: 8),
-                        if (r.reviewText != null)
-                          Text(
-                            r.reviewText!,
-                            style: TextStyle(color: Colors.grey[700]),
-                          ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () async {
-                              try {
-                                final book = await _db.getBook(r.isbn);
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => IndividualBook(book: book),
-                                  ),
-                                );
-                              } catch (_) {}
-                            },
-                            child: const Text('View Book'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
+                return ReviewTile(r: r, viewBook: true);
               },
             ),
         ],

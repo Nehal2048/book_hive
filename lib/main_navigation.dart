@@ -24,8 +24,8 @@ class _MainNavigationState extends State<MainNavigation> {
 
   static final List<Widget> _screens = <Widget>[
     LibraryScreen(),
-    MarketplaceScreen(),
     CommunityScreen(),
+    MarketplaceScreen(),
   ];
 
   @override
@@ -145,8 +145,8 @@ class _MainNavigationState extends State<MainNavigation> {
                 ),
                 destinations: [
                   _navDestination(Icons.library_books, 'Library', 0),
-                  _navDestination(Icons.store, 'Marketplace', 1),
-                  _navDestination(Icons.people, 'Community', 2),
+                  _navDestination(Icons.people, 'Community', 1),
+                  _navDestination(Icons.store, 'Marketplace', 2),
                 ],
               ),
               Expanded(
@@ -253,31 +253,23 @@ class _AccountSheet extends StatelessWidget {
       ),
     );
 
-    return Padding(
+    return Container(
+      height: 800,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.deepPurple.shade100,
-                child: const Icon(Icons.person, color: Colors.deepPurple),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'My Account',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ],
+          const Text(
+            'My Account',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           row(Icons.badge, 'Name', user.name),
           row(Icons.email, 'Email', user.email),
           row(Icons.calendar_today, 'Join Date', _fmtDate(user.joinDate)),
           row(Icons.verified_user, 'User Type', user.userType),
+          row(Icons.emoji_symbols_sharp, 'Balance', user.balance.toString()),
           row(
             Icons.shopping_cart,
             'Buyer Status',
