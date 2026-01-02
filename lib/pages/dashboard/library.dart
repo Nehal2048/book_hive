@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:book_hive/models/book.dart';
 import 'package:book_hive/models/book_details.dart';
 import 'package:book_hive/trash/testData.dart';
-import 'package:book_hive/services/database.dart';
-import 'package:book_hive/pages/dashboard/pdf_reader_screen.dart';
-import 'package:book_hive/pages/dashboard/audiobook_screen.dart';
+import 'package:book_hive/pages/misc/pdf_reader_screen.dart';
+import 'package:book_hive/pages/misc/audiobook_screen.dart';
 import 'package:book_hive/services/ai_service.dart';
+import 'package:book_hive/pages/misc/IndividualBook.dart';
+import 'package:book_hive/pages/misc/AddPage.dart';
+import 'package:book_hive/main_navigation.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -16,10 +18,6 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
-  final DatabaseService _db = DatabaseService();
-  List<Book> _books = [];
-  bool _loading = true;
-  String? _error;
   // filter / search state
   String _searchQuery = '';
   String _selectedGenre = 'All';
@@ -27,35 +25,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
   String _selectedSort = 'Title A-Z';
 
   @override
-  void initState() {
-    super.initState();
-    _loadBooks();
-  }
-
-  Future<void> _loadBooks() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final books = await _db.getBooks();
-      setState(() {
-        _books = books;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
-    } finally {
-      setState(() {
-        _loading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final sourceBooks = _books;
+    final booksProvider = BooksProvider.of(context);
+    final sourceBooks = booksProvider.books;
+    final loading = booksProvider.loading;
+    final error = booksProvider.error;
     final genres = [
       'All',
       ...{for (final b in sourceBooks) b.genre},
@@ -109,16 +83,30 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final result = await Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const AddPage()));
+          if (result != null && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Book created (local only)')),
+            );
+          }
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Add Book'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
-            if (_loading)
+            if (loading)
               const Center(child: CircularProgressIndicator())
-            else if (_error != null)
-              Center(child: Text('Error loading books: $_error'))
+            else if (error != null)
+              Center(child: Text('Error loading books: $error'))
             else ...[
               Row(
                 children: [
@@ -267,150 +255,6 @@ class _FilterDropdown extends StatelessWidget {
   }
 }
 
-class _SummarySheet extends StatefulWidget {
-  final Book book;
-
-  const _SummarySheet({required this.book});
-
-  @override
-  State<_SummarySheet> createState() => _SummarySheetState();
-}
-
-class _SummarySheetState extends State<_SummarySheet> {
-  late Future<String> _summaryFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _summaryFuture = AiService.generateSummary(widget.book);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'AI Summary',
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            widget.book.title,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: Colors.grey[600]),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(),
-              // Summary Content
-              Expanded(
-                child: FutureBuilder<String>(
-                  future: _summaryFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const CircularProgressIndicator(),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Generating AI summary...',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      );
-                    } else if (snapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.error, color: Colors.red, size: 48),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error generating summary',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: Colors.red),
-                            ),
-                          ],
-                        ),
-                      );
-                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return Center(
-                        child: Text(
-                          'No summary available',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      );
-                    }
-
-                    return ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        Text(
-                          snapshot.data!,
-                          style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(height: 1.6, color: Colors.grey[800]),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.bookmark_add),
-                          label: const Text('Save to Reading List'),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '${widget.book.title} added to reading list',
-                                ),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
 class _BookCard extends StatelessWidget {
   final Book book;
 
@@ -427,11 +271,9 @@ class _BookCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          builder: (context) => _SummarySheet(book: book),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => IndividualBook(book: book)));
       },
       child: Card(
         elevation: 1,

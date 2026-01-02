@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'package:book_hive/main_navigation.dart';
 import 'package:book_hive/pages/sign_in.dart';
 import 'package:flutter/material.dart';
-import 'package:book_hive/pages/dashboard/dashboard.dart';
 import 'package:get/instance_manager.dart';
 
 import '../services/app_controller.dart';
@@ -31,7 +31,7 @@ class SplashScreenState extends State<SplashScreen> {
             : MaterialPageRoute(
                 settings: const RouteSettings(name: "/dashboard"),
                 builder: (BuildContext context) {
-                  return const DashboardScreen();
+                  return const MainNavigation();
                 },
               ),
       );

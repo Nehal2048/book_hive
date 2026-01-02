@@ -1,55 +1,65 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:book_hive/models/book.dart';
+import 'package:http/http.dart' as http;
 
-class AiService {
-  // Replace with your actual OpenAI API key
-  static const _apiKey =
-      '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';
+class AIBookService {
+  final String apiKey;
+  final String baseUrl;
 
-  // OpenAI chat completions endpoint
-  static const _endpoint = 'https://api.openai.com/v1/chat/completions';
+  AIBookService({
+    required this.apiKey,
+    this.baseUrl = 'https://openrouter.ai/api/v1/chat/completions',
+  });
 
-  /// Generate a summary for a given Book using GPT-3.5
-  static Future<String> generateSummary(Book book) async {
+  Future<String> generateReport(Book book) async {
     final prompt =
-        '''
-Generate a concise, engaging, and easy-to-read summary for the following book:
+        """
+Generate a comprehensive response for the book titled '${book.title}' by ${book.author}. Include the following:
 
-Title: ${book.title}
-Author: ${book.author}
-Genre: ${book.genre}
-Existing summary: ${book.summary}
-''';
+1️⃣ **Summary**: A clear and concise summary of the book in 3–5 sentences.
+2️⃣ **Key Takeaways**: List the top 5 lessons, insights, or ideas from the book.
+3️⃣ **Similar Books**: Suggest 3–5 books similar in theme, style, or topic.
+4️⃣ **AI Review**: Write a short AI-generated review of the book (2–3 sentences).
+5️⃣ **Actionable Advice**: Suggest 2–3 practical actions or steps a reader can take based on the book's content.
+
+Format your response as JSON with these keys: 
+{
+  "summary": "...",
+  "key_takeaways": ["...", "...", "..."],
+  "similar_books": ["...", "...", "..."],
+  "ai_review": "...",
+  "actionable_advice": ["...", "...", "..."]
+}
+
+Ensure the JSON is valid and ready to parse in the Flutter app.
+""";
 
     final response = await http.post(
-      Uri.parse(_endpoint),
+      Uri.parse(baseUrl),
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $_apiKey',
+        "Authorization": "Bearer $apiKey",
+        "Content-Type": "application/json",
       },
       body: jsonEncode({
-        'model': 'gpt-3.5-turbo',
-        'messages': [
+        "model": "gpt-3.5-turbo",
+        "messages": [
           {
-            'role': 'system',
-            'content': 'You are a professional book summarizer.',
+            "role": "system",
+            "content":
+                "You are an assistant that generates clear and structured book insights for a mobile app.",
           },
-          {'role': 'user', 'content': prompt},
+          {"role": "user", "content": prompt},
         ],
-        'max_tokens': 300,
-        'temperature': 0.7, // creativity
       }),
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      final summary = data['choices'][0]['message']['content']
-          .toString()
-          .trim();
-      return summary;
+      return data['choices'][0]['message']['content'];
     } else {
-      throw Exception('OpenAI API Error: ${response.body}');
+      throw Exception(
+        'Failed to generate summary: ${response.statusCode} ${response.body}',
+      );
     }
   }
 }

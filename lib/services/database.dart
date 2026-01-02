@@ -4,6 +4,7 @@ import 'package:book_hive/main.dart';
 import 'package:book_hive/models/book.dart';
 import 'package:book_hive/models/user.dart';
 import 'package:book_hive/models/book_details.dart';
+import 'package:book_hive/models/review.dart';
 import 'package:book_hive/shared/const.dart';
 import 'package:http/http.dart' as http;
 
@@ -51,8 +52,11 @@ class DatabaseService {
     return <Book>[];
   }
 
-  Future<Book> addBook(Map<String, dynamic> book) async {
-    final uri = Uri.parse('$base/books');
+  Future<Book> addBook(Map<String, dynamic> book, {String? email}) async {
+    email ??= await storage.read(key: 'email') ?? '';
+    final uri = Uri.parse(
+      '$base/books',
+    ).replace(queryParameters: {'email': email});
     final res = await http.post(
       uri,
       headers: await headers0(),
@@ -60,7 +64,9 @@ class DatabaseService {
     );
     ensureSuccess(res);
     final decoded = jsonDecode(res.body);
-    final payload = (decoded is Map && decoded['data'] != null)
+    final payload = (decoded is Map && decoded['book'] != null)
+        ? decoded['book']
+        : (decoded is Map && decoded['data'] != null)
         ? decoded['data']
         : decoded;
     if (payload is Map) return Book.fromJson(payload.cast<String, dynamic>());
@@ -170,19 +176,42 @@ class DatabaseService {
     return <Book>[];
   }
 
-  Future<dynamic> addBookLink(String isbn, Map<String, dynamic> link) async {
-    final uri = Uri.parse('$base/books/$isbn/add-link');
-    final res = await http.post(
-      uri,
-      headers: await headers0(),
-      body: jsonEncode(link),
-    );
+  Future<BookDetails> addBookLink(
+    String isbn,
+    Map<String, dynamic> link, {
+    String? email,
+  }) async {
+    email ??= await storage.read(key: 'email') ?? '';
+
+    final edition = link['edition'] ?? link['Edition'];
+    final pdfLink = link['pdfLink'] ?? link['pdf_link'];
+    final audioUrl = link['audioUrl'] ?? link['audio_url'];
+
+    if (edition == null || edition.toString().isEmpty) {
+      throw Exception('Edition is required');
+    }
+
+    final params = <String, String>{
+      'email': email,
+      'edition': edition.toString(),
+    };
+
+    if (pdfLink != null && pdfLink.toString().isNotEmpty) {
+      params['pdf_link'] = pdfLink.toString();
+    }
+    if (audioUrl != null && audioUrl.toString().isNotEmpty) {
+      params['audio_url'] = audioUrl.toString();
+    }
+
+    final uri = Uri.parse(
+      '$base/books/$isbn/add-link',
+    ).replace(queryParameters: params);
+
+    final res = await http.post(uri, headers: await headers0());
     ensureSuccess(res);
+
     final decoded = jsonDecode(res.body);
-    final payload = (decoded is Map && decoded['data'] != null)
-        ? decoded['data']
-        : decoded;
-    return payload;
+    return BookDetails.fromJson(decoded['detail']);
   }
 
   Future<List<BookDetails>> getAllBookDetails() async {
@@ -257,8 +286,6 @@ class DatabaseService {
       headers: await headers0(),
       body: jsonEncode(userData),
     );
-    print(uri.toString());
-    print(res.body);
     ensureSuccess(res);
     final decoded = jsonDecode(res.body);
     final payload = (decoded is Map && decoded['data'] != null)
@@ -266,5 +293,153 @@ class DatabaseService {
         : decoded;
     if (payload is Map) return User.fromJson(payload.cast<String, dynamic>());
     throw Exception('Failed to create user');
+  }
+
+  Future<User> getUserByEmail(String email) async {
+    final uri = Uri.parse('$base/users/${Uri.encodeComponent(email)}');
+    final res = await http.get(uri, headers: await headers0());
+    ensureSuccess(res);
+    final decoded = jsonDecode(res.body);
+    final payload = (decoded is Map && decoded['data'] != null)
+        ? decoded['data']
+        : decoded;
+    if (payload is Map) return User.fromJson(payload.cast<String, dynamic>());
+    throw Exception('User not found');
+  }
+
+  // Reviews
+
+  Future<Review> createReview(
+    String email,
+    Map<String, dynamic> reviewData,
+  ) async {
+    final uri = Uri.parse('$base/reviews/?email=${Uri.encodeComponent(email)}');
+    final res = await http.post(
+      uri,
+      headers: await headers0(),
+      body: jsonEncode(reviewData),
+    );
+
+    ensureSuccess(res);
+    final decoded = jsonDecode(res.body);
+    final payload = (decoded is Map && decoded['data'] != null)
+        ? decoded['data']
+        : decoded;
+    if (payload is Map) return Review.fromJson(payload.cast<String, dynamic>());
+    throw Exception('Failed to create review');
+  }
+
+  Future<List<Review>> getAllReviews() async {
+    final uri = Uri.parse('$base/reviews/');
+    final res = await http.get(uri, headers: await headers0());
+    ensureSuccess(res);
+    final decoded = jsonDecode(res.body);
+    final payload = (decoded is Map && decoded['data'] != null)
+        ? decoded['data']
+        : decoded;
+    if (payload is List) {
+      return payload
+          .map<Review>((e) => Review.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return <Review>[];
+  }
+
+  Future<Review> getReview(String reviewId) async {
+    final uri = Uri.parse('$base/reviews/${Uri.encodeComponent(reviewId)}');
+    final res = await http.get(uri, headers: await headers0());
+    ensureSuccess(res);
+    final decoded = jsonDecode(res.body);
+    final payload = (decoded is Map && decoded['data'] != null)
+        ? decoded['data']
+        : decoded;
+    if (payload is Map) return Review.fromJson(payload.cast<String, dynamic>());
+    throw Exception('Review not found');
+  }
+
+  Future<bool> deleteReview(String reviewId) async {
+    final uri = Uri.parse('$base/reviews/${Uri.encodeComponent(reviewId)}');
+    final res = await http.delete(uri, headers: await headers0());
+    ensureSuccess(res);
+    return true;
+  }
+
+  Future<List<Review>> getReviewsByBook(String isbn) async {
+    final uri = Uri.parse('$base/reviews/book/${Uri.encodeComponent(isbn)}');
+    final res = await http.get(uri, headers: await headers0());
+    ensureSuccess(res);
+    final decoded = jsonDecode(res.body);
+    final payload = (decoded is Map && decoded['data'] != null)
+        ? decoded['data']
+        : decoded;
+    if (payload is List) {
+      return payload
+          .map<Review>((e) => Review.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return <Review>[];
+  }
+
+  Future<List<Review>> getReviewsByUser(String userId) async {
+    final uri = Uri.parse('$base/reviews/user/${Uri.encodeComponent(userId)}');
+    final res = await http.get(uri, headers: await headers0());
+    ensureSuccess(res);
+    final decoded = jsonDecode(res.body);
+    final payload = (decoded is Map && decoded['data'] != null)
+        ? decoded['data']
+        : decoded;
+    if (payload is List) {
+      return payload
+          .map<Review>((e) => Review.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return <Review>[];
+  }
+
+  // Helpers for user+book keyed review endpoints (email + isbn)
+  Future<Review> getReviewByUserAndBook(String userEmail, String isbn) async {
+    final uri = Uri.parse(
+      '$base/reviews/${Uri.encodeComponent(userEmail)}/${Uri.encodeComponent(isbn)}',
+    );
+    final res = await http.get(uri, headers: await headers0());
+    ensureSuccess(res);
+    final decoded = jsonDecode(res.body);
+    final payload = (decoded is Map && decoded['data'] != null)
+        ? decoded['data']
+        : decoded;
+    if (payload is Map) return Review.fromJson(payload.cast<String, dynamic>());
+    throw Exception('Review not found');
+  }
+
+  Future<Review> updateReviewByUserAndBook(
+    String userEmail,
+    String isbn,
+    Map<String, dynamic> updates,
+  ) async {
+    final uri = Uri.parse(
+      '$base/reviews/${Uri.encodeComponent(userEmail)}/${Uri.encodeComponent(isbn)}?email=${Uri.encodeComponent(userEmail)}',
+    );
+
+    final res = await http.put(
+      uri,
+      headers: await headers0(),
+      body: jsonEncode(updates),
+    );
+    ensureSuccess(res);
+    final decoded = jsonDecode(res.body);
+    final payload = (decoded is Map && decoded['data'] != null)
+        ? decoded['data']
+        : decoded;
+    if (payload is Map) return Review.fromJson(payload.cast<String, dynamic>());
+    throw Exception('Failed to update review');
+  }
+
+  Future<bool> deleteReviewByUserAndBook(String userEmail, String isbn) async {
+    final uri = Uri.parse(
+      '$base/reviews/${Uri.encodeComponent(userEmail)}/${Uri.encodeComponent(isbn)}',
+    );
+    final res = await http.delete(uri, headers: await headers0());
+    ensureSuccess(res);
+    return true;
   }
 }

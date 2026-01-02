@@ -1,10 +1,9 @@
-import 'package:book_hive/pages/dashboard/aitools.dart';
 import 'package:book_hive/pages/dashboard/community_screen.dart';
-import 'package:book_hive/pages/dashboard/dashboard.dart';
-import 'package:book_hive/pages/dashboard/discovery_screen.dart';
 import 'package:book_hive/pages/dashboard/library.dart';
 import 'package:book_hive/pages/dashboard/marketplace.dart';
-import 'package:book_hive/trash/testData.dart';
+import 'package:book_hive/services/database.dart';
+import 'package:book_hive/models/book.dart';
+import 'package:book_hive/models/user.dart';
 import 'package:flutter/material.dart';
 import 'package:book_hive/services/auth_service.dart';
 
@@ -18,14 +17,43 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
+  final DatabaseService _db = DatabaseService();
+  List<Book> _books = [];
+  bool _booksLoading = true;
+  String? _booksError;
+
   static final List<Widget> _screens = <Widget>[
-    DashboardScreen(),
     LibraryScreen(),
     MarketplaceScreen(),
-    AiToolsScreen(),
     CommunityScreen(),
-    DiscoveryScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBooks();
+  }
+
+  Future<void> _loadBooks() async {
+    setState(() {
+      _booksLoading = true;
+      _booksError = null;
+    });
+    try {
+      final books = await _db.getBooks();
+      setState(() {
+        _books = books;
+      });
+    } catch (e) {
+      setState(() {
+        _booksError = e.toString();
+      });
+    } finally {
+      setState(() {
+        _booksLoading = false;
+      });
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -116,18 +144,20 @@ class _MainNavigationState extends State<MainNavigation> {
                   ),
                 ),
                 destinations: [
-                  _navDestination(Icons.home, 'Dashboard', 0),
-                  _navDestination(Icons.library_books, 'Library', 1),
-                  _navDestination(Icons.store, 'Marketplace', 2),
-                  _navDestination(Icons.lightbulb, 'AI Tools', 3),
-                  _navDestination(Icons.people, 'Community', 4),
-                  _navDestination(Icons.search, 'Discover', 5),
+                  _navDestination(Icons.library_books, 'Library', 0),
+                  _navDestination(Icons.store, 'Marketplace', 1),
+                  _navDestination(Icons.people, 'Community', 2),
                 ],
               ),
               Expanded(
-                child: Container(
-                  color: Colors.white,
-                  child: _screens[_selectedIndex],
+                child: BooksProvider(
+                  books: _books,
+                  loading: _booksLoading,
+                  error: _booksError,
+                  child: Container(
+                    color: Colors.white,
+                    child: _screens[_selectedIndex],
+                  ),
                 ),
               ),
             ],
@@ -138,13 +168,32 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 }
 
-void _showAccountSheet(BuildContext context) {
+Future<void> _showAccountSheet(BuildContext context) async {
+  final email = AuthService().getUserEmail();
+  if (email == null || email.isEmpty) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('No signed-in user found')));
+    return;
+  }
+
+  User user;
+  try {
+    user = await DatabaseService().getUserByEmail(email);
+  } catch (e) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Failed to load account: $e')));
+    return;
+  }
+
   showModalBottomSheet(
     context: context,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
     builder: (ctx) => _AccountSheet(
+      user: user,
       onLogout: () async {
         Navigator.of(ctx).pop();
         try {
@@ -166,16 +215,15 @@ void _showAccountSheet(BuildContext context) {
 
 class _AccountSheet extends StatelessWidget {
   final VoidCallback onLogout;
+  final User user;
 
-  const _AccountSheet({required this.onLogout});
+  const _AccountSheet({required this.onLogout, required this.user});
 
   String _fmtDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
-    final user = fakeCurrentUser;
-
     Widget row(IconData icon, String label, String value) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -267,5 +315,35 @@ class _AccountSheet extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class BooksProvider extends InheritedWidget {
+  final List<Book> books;
+  final bool loading;
+  final String? error;
+
+  const BooksProvider({
+    required this.books,
+    required this.loading,
+    required this.error,
+    required super.child,
+    super.key,
+  });
+
+  static BooksProvider of(BuildContext context) {
+    final BooksProvider? provider = context
+        .dependOnInheritedWidgetOfExactType<BooksProvider>();
+    if (provider == null) {
+      throw Exception('BooksProvider not found in widget tree');
+    }
+    return provider;
+  }
+
+  @override
+  bool updateShouldNotify(BooksProvider oldWidget) {
+    return books != oldWidget.books ||
+        loading != oldWidget.loading ||
+        error != oldWidget.error;
   }
 }

@@ -40,12 +40,13 @@ class _SignUpPageState extends State<SignUpPage> {
   final AuthService _authService = AuthService();
 
   void _signUp() async {
+    print("SIGN UP CALLED");
     if (!_formKey.currentState!.validate()) return;
 
     final email = emailController.text.trim();
     final password = passwordController.text;
     final name = nameController.text.trim();
-
+    print("EMAIL: $email, NAME: $name");
     try {
       final user = User(
         email: email,
@@ -59,30 +60,24 @@ class _SignUpPageState extends State<SignUpPage> {
       // Create account with Supabase auth
       final resp = await _authService.signUpWithEmailPassword(email, password);
 
-      // If session/user is null, Supabase may require email confirmation.
-      if (resp.user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Sign-up initiated. Check your email to confirm the account.',
-            ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Account created for ${user.email}')),
-        );
-      }
-
+      // Save user record to database
       try {
+        print("HELLO");
         await DatabaseService().createUser(user.toJson());
       } catch (e) {
+        print('Error saving user record: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to save user record: $e')),
         );
+        return;
       }
 
-      // Navigate back to sign-in page
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Account created for ${user.email}')),
+      );
+
+      // Navigate to sign-in page
       Navigator.of(
         context,
       ).pushReplacement(MaterialPageRoute(builder: (_) => const SignInPage()));

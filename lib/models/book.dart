@@ -56,4 +56,54 @@ class Book {
     return 'Book(isbn: $isbn, title: $title, author: $author, '
         'publishedYear: $publishedYear, genre: $genre, language: $language)';
   }
+
+  /// Create Book from Open Library JSON
+  factory Book.fromOpenLibraryJson(String isbnKey, Map<String, dynamic> json) {
+    final data = json[isbnKey] ?? {};
+
+    // Extract authors as comma-separated string
+    String author = "";
+    if (data['authors'] != null && data['authors'] is List) {
+      author = (data['authors'] as List).map((a) => a['name']).join(', ');
+    }
+
+    // Extract publishers as comma-separated string
+    String publisher = "";
+    if (data['publishers'] != null && data['publishers'] is List) {
+      publisher = (data['publishers'] as List).map((p) => p['name']).join(', ');
+    }
+
+    // Extract first subject as genre (optional)
+    String genre = "";
+    if (data['subjects'] != null &&
+        data['subjects'] is List &&
+        data['subjects'].isNotEmpty) {
+      genre = data['subjects'][0]['name'] ?? "";
+    }
+
+    // Extract published year from publish_date
+    int publishedYear = 0;
+    if (data['publish_date'] != null) {
+      final yearMatch = RegExp(r'\d{4}').firstMatch(data['publish_date']);
+      if (yearMatch != null) publishedYear = int.parse(yearMatch.group(0)!);
+    }
+
+    // Cover image (large)
+    String coverUrl = "";
+    if (data['cover'] != null && data['cover']['large'] != null) {
+      coverUrl = data['cover']['large'];
+    }
+
+    return Book(
+      isbn: isbnKey.replaceAll('ISBN:', ''),
+      title: data['title'] ?? "",
+      summary: data['notes'] ?? "", // you can use notes as a short summary
+      genre: genre,
+      language: "English", // Open Library doesn't always provide language
+      author: author,
+      publisher: publisher,
+      coverUrl: coverUrl,
+      publishedYear: publishedYear,
+    );
+  }
 }

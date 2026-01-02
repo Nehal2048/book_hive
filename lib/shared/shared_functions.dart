@@ -21,3 +21,21 @@ showLoaderDialog(BuildContext context, bool? dismissable) {
 copyToClipBoard(data) async {
   await Clipboard.setData(ClipboardData(text: data));
 }
+
+String formatDate(DateTime date) {
+  final months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+}
