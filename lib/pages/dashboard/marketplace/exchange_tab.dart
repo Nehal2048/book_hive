@@ -1,3 +1,5 @@
+import 'package:book_hive/models/book.dart';
+import 'package:book_hive/shared/shared_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:book_hive/pages/dashboard/marketplace/marketplace_widgets.dart';
 import 'package:book_hive/services/database.dart';
@@ -68,22 +70,6 @@ class _ExchangeTabState extends State<ExchangeTab> {
             style: TextStyle(color: Colors.grey[600]),
           ),
           SizedBox(height: 24),
-          Container(
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.orange.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.lightbulb, color: Colors.orange),
-                SizedBox(width: 12),
-                Expanded(child: Text('Browse available books to exchange!')),
-              ],
-            ),
-          ),
-          SizedBox(height: 24),
           Text(
             'Available for Exchange',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -116,7 +102,7 @@ class _ExchangeTabState extends State<ExchangeTab> {
                 shrinkWrap: true,
                 physics: NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
+                  crossAxisCount: 4,
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   childAspectRatio: 0.75,
@@ -124,73 +110,18 @@ class _ExchangeTabState extends State<ExchangeTab> {
                 itemCount: listings.length,
                 itemBuilder: (context, index) {
                   final listing = listings[index];
+
+                  Book? book = findBookByIsbn([], listing.isbn ?? "", context)!;
+                  // Book? requesting = findBookByIsbn([], listing.requestId , context)!;
+
                   return GestureDetector(
                     onTap: () => _sendExchangeRequest(listing.id),
                     child: MarketplaceCard(
-                      title: listing.isbn ?? "",
-                      subtitle: listing.condition ?? "",
+                      condition: listing.condition ?? "",
                       price: 'For Trade',
                       status: 'Requesting: ${listing.requestId ?? 'Any'}',
                       statusColor: Colors.orange,
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-          SizedBox(height: 32),
-          Text(
-            'Your Exchange Requests',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 16),
-          FutureBuilder<List<dynamic>>(
-            future: _userExchangesFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-
-              final exchanges = snapshot.data ?? [];
-              if (exchanges.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: Text(
-                      'No active exchange requests',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                itemCount: exchanges.length,
-                itemBuilder: (context, index) {
-                  final exchange = exchanges[index];
-                  return Card(
-                    margin: EdgeInsets.only(bottom: 12),
-                    child: Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Exchange #${exchange['id'] ?? 'N/A'}',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Status: ${exchange['status'] ?? 'pending'}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                        ],
-                      ),
+                      book: book,
                     ),
                   );
                 },

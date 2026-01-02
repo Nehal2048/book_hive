@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:book_hive/pages/misc/add_listing.dart';
 import 'package:book_hive/main_navigation.dart';
 import 'package:book_hive/pages/dashboard/marketplace/buy_tab.dart';
-import 'package:book_hive/pages/dashboard/marketplace/sell_tab.dart';
+import 'package:book_hive/pages/dashboard/marketplace/my_listing.dart';
 import 'package:book_hive/pages/dashboard/marketplace/exchange_tab.dart';
-import 'package:book_hive/pages/dashboard/marketplace/borrow_lend_tab.dart';
+import 'package:book_hive/pages/dashboard/marketplace/borrow_tab.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -36,9 +36,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
             indicatorColor: Colors.deepPurple,
             tabs: [
               Tab(icon: Icon(Icons.shopping_cart), text: 'Buy'),
-              Tab(icon: Icon(Icons.sell), text: 'Sell'),
               Tab(icon: Icon(Icons.swap_horiz), text: 'Exchange'),
-              Tab(icon: Icon(Icons.handshake), text: 'Borrow/Lend'),
+              Tab(icon: Icon(Icons.handshake), text: 'Borrow'),
+              Tab(
+                icon: Icon(Icons.my_library_books_rounded),
+                text: 'My Listing',
+              ),
             ],
           ),
         ),
@@ -47,12 +50,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
             children: [
               TabBarView(
                 controller: _tabController,
-                children: [
-                  _buildBuyTab(),
-                  _buildSellTab(),
-                  _buildExchangeTab(),
-                  _buildBorrowLendTab(),
-                ],
+                children: [BuyTab(), ExchangeTab(), BorrowTab(), MyListing()],
               ),
               Positioned(
                 bottom: 24,
@@ -85,161 +83,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildBuyTab() {
-    return const BuyTab();
-  }
-
-  Widget _buildSellTab() {
-    return const SellTab();
-  }
-
-  Widget _buildExchangeTab() {
-    return const ExchangeTab();
-  }
-
-  Widget _buildBorrowLendTab() {
-    return const BorrowLendTab();
-  }
-
-  Widget _buildMarketplaceCard(
-    String title,
-    String subtitle,
-    String price,
-    String status,
-    Color statusColor,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade200,
-            blurRadius: 8,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 3,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.deepPurple.shade100,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-              ),
-              child: Center(
-                child: Icon(Icons.book, size: 48, color: Colors.deepPurple),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        price,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.deepPurple,
-                        ),
-                      ),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          status,
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: statusColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 32),
-          SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 }

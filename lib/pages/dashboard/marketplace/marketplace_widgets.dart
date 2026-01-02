@@ -1,19 +1,21 @@
+import 'package:book_hive/models/book.dart';
+import 'package:book_hive/pages/misc/IndividualBook.dart';
 import 'package:flutter/material.dart';
 
 class MarketplaceCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
   final String price;
   final String status;
+  final String condition;
   final Color statusColor;
+  final Book book;
 
   const MarketplaceCard({
     super.key,
-    required this.title,
-    required this.subtitle,
     required this.price,
     required this.status,
     required this.statusColor,
+    required this.book,
+    required this.condition,
   });
 
   @override
@@ -33,69 +35,93 @@ class MarketplaceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 📕 Book Cover
           Expanded(
             flex: 3,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.deepPurple.shade100,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
               ),
-              child: Center(
-                child: Icon(Icons.book, size: 48, color: Colors.deepPurple),
+              child: Container(
+                width: double.infinity,
+                color: Colors.deepPurple.shade100,
+                child: book.coverUrl.isNotEmpty
+                    ? Image.network(
+                        book.coverUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.book, size: 48),
+                      )
+                    : const Icon(Icons.book, size: 48),
               ),
             ),
           ),
+
+          // 📄 Book Info
           Expanded(
             flex: 2,
             child: Padding(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Title + Author
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
-                        style: TextStyle(
+                        book.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          fontSize: 12,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        subtitle,
-                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                        book.author.isNotEmpty ? book.author : 'Unknown author',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                       ),
                     ],
                   ),
+
+                  // Price + Status
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         price,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: Colors.deepPurple,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Condition: $condition",
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.deepPurple,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
                       Container(
-                        padding: EdgeInsets.symmetric(
+                        padding: const EdgeInsets.symmetric(
                           horizontal: 6,
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          status,
+                          status.toUpperCase(),
                           style: TextStyle(
                             fontSize: 9,
                             color: statusColor,
@@ -109,6 +135,19 @@ class MarketplaceCard extends StatelessWidget {
               ),
             ),
           ),
+          SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => IndividualBook(book: book)),
+                );
+              },
+              child: Text("View Book"),
+            ),
+          ),
+          SizedBox(height: 4),
         ],
       ),
     );

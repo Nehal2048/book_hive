@@ -43,8 +43,10 @@ String formatDate(DateTime date) {
 }
 
 Book? findBookByIsbn(List<Book> books, String isbn, context) {
-  final booksProvider = BooksProvider.of(context);
-  books = booksProvider.books;
+  if (books.isEmpty) {
+    final booksProvider = BooksProvider.of(context);
+    books = booksProvider.books;
+  }
 
   try {
     return books.firstWhere((b) => b.isbn == isbn);

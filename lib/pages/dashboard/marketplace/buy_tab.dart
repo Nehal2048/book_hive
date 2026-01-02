@@ -55,6 +55,7 @@ class _BuyTabState extends State<BuyTab> {
         );
         setState(() {
           _cartItems.clear();
+          _listingsFuture = _databaseService.getListingsByType('sale');
         });
       }
     } catch (e) {
@@ -103,16 +104,45 @@ class _BuyTabState extends State<BuyTab> {
                       return Center(child: Text('Error: ${snapshot.error}'));
                     }
 
-                    final listings = snapshot.data ?? [];
+                    final allListings = snapshot.data ?? [];
+                    final currentUserEmail = _authService.getUserEmail();
+
+                    // Filter: only available and not created by current user
+                    final listings = allListings
+                        .where(
+                          (l) =>
+                              l.status == 'available' &&
+                              l.sellerId != currentUserEmail,
+                        )
+                        .toList();
+
                     if (listings.isEmpty) {
-                      return Center(child: Text('No books for sale'));
+                      return Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 48),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.shopping_bag_outlined,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'No books available for purchase',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
                     }
 
                     return GridView.builder(
                       shrinkWrap: true,
                       physics: NeverScrollableScrollPhysics(),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
+                        crossAxisCount: 4,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
                         childAspectRatio: 0.75,
@@ -126,7 +156,11 @@ class _BuyTabState extends State<BuyTab> {
                           [],
                           listing.isbn ?? "",
                           context,
-                        )!;
+                        );
+
+                        if (book == null) {
+                          return SizedBox();
+                        }
 
                         return GestureDetector(
                           onTap: () {
@@ -141,14 +175,14 @@ class _BuyTabState extends State<BuyTab> {
                           child: Stack(
                             children: [
                               MarketplaceCard(
-                                title: book.title ?? listing.isbn ?? "",
-                                subtitle:
-                                    "Condition: ${listing.condition ?? ""}",
-                                price: '\$${listing.price.toStringAsFixed(2)}',
+                                condition: listing.condition ?? "Good",
+                                price:
+                                    'Tk. ${listing.price.toStringAsFixed(2)}',
                                 status: listing.status ?? "",
                                 statusColor: listing.status == 'available'
                                     ? Colors.green
                                     : Colors.orange,
+                                book: book,
                               ),
                               if (isInCart)
                                 Positioned(

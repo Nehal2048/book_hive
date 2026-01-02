@@ -1,13 +1,15 @@
 import 'package:book_hive/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:book_hive/models/book.dart';
+import 'package:book_hive/models/listing.dart';
 import 'package:book_hive/services/database.dart';
 import 'package:book_hive/pages/misc/IndividualBook.dart';
 
 class AddListingPage extends StatefulWidget {
   final List<Book> books;
+  final Listing? existingListing;
 
-  const AddListingPage({super.key, required this.books});
+  const AddListingPage({super.key, required this.books, this.existingListing});
 
   @override
   State<AddListingPage> createState() => _AddListingPageState();
@@ -40,6 +42,59 @@ class _AddListingPageState extends State<AddListingPage> {
     _searchController = TextEditingController();
     _priceController = TextEditingController();
     _exchangeSearchController = TextEditingController();
+    _initFromExisting();
+  }
+
+  Future<void> _initFromExisting() async {
+    final existing = widget.existingListing;
+    if (existing == null) return;
+
+    // Prefill basic fields
+    _selectedIsbn = existing.isbn;
+    _selectedListingType = existing.listingType;
+    _selectedCondition = existing.condition;
+    _priceController.text = existing.price.toString() ?? '';
+
+    // Try to find the Book object from provided list first
+    try {
+      final found = widget.books.firstWhere((b) => b.isbn == existing.isbn);
+      _selectedBook = found;
+      _searchController.text = '${found.title} - ${found.author}';
+    } catch (_) {
+      // If not found locally, fetch from API
+      try {
+        final fetched = await _databaseService.getBook(existing.isbn ?? '');
+        setState(() {
+          _selectedBook = fetched;
+          _searchController.text = '${fetched.title} - ${fetched.author}';
+        });
+      } catch (_) {}
+    }
+
+    // If exchange listing, try to prefill requested book
+    if (existing.listingType == 'exchange') {
+      // String reqIsbn = existing.requestId ?? existing.requestId ?? ''; //TODO
+      String reqIsbn = '';
+      if (reqIsbn.isNotEmpty) {
+        _selectedExchangeIsbn = reqIsbn;
+        try {
+          final foundEx = widget.books.firstWhere((b) => b.isbn == reqIsbn);
+          _selectedExchangeBook = foundEx;
+          _exchangeSearchController.text =
+              '${foundEx.title} - ${foundEx.author}';
+        } catch (_) {
+          try {
+            final fetchedEx = await _databaseService.getBook(reqIsbn);
+            setState(() {
+              _selectedExchangeBook = fetchedEx;
+              _exchangeSearchController.text =
+                  '${fetchedEx.title} - ${fetchedEx.author}';
+            });
+          } catch (_) {}
+        }
+      }
+    }
+    setState(() {});
   }
 
   @override
@@ -155,19 +210,41 @@ class _AddListingPageState extends State<AddListingPage> {
         listingData['request_id'] = _selectedExchangeIsbn;
       }
 
-      final listing = await _databaseService.createListing(
-        listingData,
-        sellerId: AuthService().getUserEmail() ?? "",
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Listing created successfully!'),
-            backgroundColor: Colors.green,
-          ),
+      if (widget.existingListing != null) {
+        // Update existing listing
+        try {
+          final updated = await _databaseService.updateListing(
+            widget.existingListing!.id,
+            listingData,
+            userId: AuthService().getUserEmail() ?? "",
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Listing updated successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            Navigator.pop(context, updated);
+          }
+        } catch (e) {
+          rethrow;
+        }
+      } else {
+        final listing = await _databaseService.createListing(
+          listingData,
+          sellerId: AuthService().getUserEmail() ?? "",
         );
-        Navigator.pop(context, listing);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Listing created successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, listing);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -500,41 +577,40 @@ class _AddListingPageState extends State<AddListingPage> {
                     ),
                   ),
                 SizedBox(height: 16),
-              ]
+              ],
               // Condition Dropdown
-              else
-                DropdownButtonFormField<String>(
-                  value: _selectedCondition,
-                  decoration: InputDecoration(
-                    labelText: 'Book Condition',
-                    prefixIcon: Icon(Icons.check_circle),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
+              DropdownButtonFormField<String>(
+                value: _selectedCondition,
+                decoration: InputDecoration(
+                  labelText: 'Book Condition',
+                  prefixIcon: Icon(Icons.check_circle),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  hint: Text('Select condition'),
-                  items: _conditions.map((condition) {
-                    return DropdownMenuItem(
-                      value: condition,
-                      child: Text(
-                        condition[0].toUpperCase() + condition.substring(1),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedCondition = value);
-                  },
-                  validator: (value) {
-                    if (value == null) {
-                      return 'Please select a condition';
-                    }
-                    return null;
-                  },
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
                 ),
+                hint: Text('Select condition'),
+                items: _conditions.map((condition) {
+                  return DropdownMenuItem(
+                    value: condition,
+                    child: Text(
+                      condition[0].toUpperCase() + condition.substring(1),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => _selectedCondition = value);
+                },
+                validator: (value) {
+                  if (value == null) {
+                    return 'Please select a condition';
+                  }
+                  return null;
+                },
+              ),
               SizedBox(height: 32),
               // Submit Button
               SizedBox(

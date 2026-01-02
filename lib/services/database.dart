@@ -564,7 +564,6 @@ class DatabaseService {
     Map<String, dynamic> updates, {
     String? userId,
   }) async {
-    userId ??= await storage.read(key: 'email') ?? '';
     final uri = Uri.parse(
       '$base/listings/$listingId',
     ).replace(queryParameters: {'user_id': userId});
@@ -584,8 +583,7 @@ class DatabaseService {
     throw Exception('Failed to update listing');
   }
 
-  Future<bool> deleteListing(int listingId, {String? userId}) async {
-    userId ??= await storage.read(key: 'email') ?? '';
+  Future<bool> deleteListing(int listingId, String? userId) async {
     final uri = Uri.parse(
       '$base/listings/$listingId',
     ).replace(queryParameters: {'user_id': userId});
