@@ -1,3 +1,4 @@
+import 'package:book_hive/models/user.dart';
 import 'package:book_hive/pages/misc/review_tile.dart';
 import 'package:book_hive/shared/shared_functions.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +9,9 @@ import 'package:book_hive/models/book.dart';
 import 'package:book_hive/main_navigation.dart';
 
 class CommunityScreen extends StatefulWidget {
-  const CommunityScreen({super.key});
+  final User userAccount;
+
+  const CommunityScreen({super.key, required this.userAccount});
 
   @override
   State<CommunityScreen> createState() => _CommunityScreenState();
@@ -73,14 +76,6 @@ class _CommunityScreenState extends State<CommunityScreen> {
   Widget build(BuildContext context) {
     final booksProvider = BooksProvider.of(context);
     final books = booksProvider.books;
-
-    String getBookTitle(String isbn) {
-      try {
-        return books.firstWhere((b) => b.isbn == isbn).title;
-      } catch (_) {
-        return isbn; // fallback to ISBN if book not found
-      }
-    }
 
     final displayedReviews = _showMyReviewsOnly
         ? _reviews.where((r) => r.email == currentEmail).toList()

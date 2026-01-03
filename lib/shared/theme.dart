@@ -160,8 +160,8 @@ final ThemeData themeData = ThemeData(
   ),
   dividerColor: primaryColor.withAlpha(60),
   snackBarTheme: const SnackBarThemeData(backgroundColor: greenPositive),
-  dialogTheme: const DialogThemeData(
-    titleTextStyle: navBarTextStyle,
+  dialogTheme: DialogThemeData(
+    titleTextStyle: navBarTextStyle.copyWith(fontSize: 20, color: Colors.black),
     backgroundColor: Colors.white,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(10)),

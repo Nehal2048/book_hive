@@ -22,15 +22,20 @@ class _MainNavigationState extends State<MainNavigation> {
   bool _booksLoading = true;
   String? _booksError;
 
-  static final List<Widget> _screens = <Widget>[
-    LibraryScreen(),
-    CommunityScreen(),
-    MarketplaceScreen(),
-  ];
+  User mainUserAccount = User(
+    name: '',
+    email: '',
+    joinDate: DateTime.now(),
+    userType: '',
+    balance: 0.0,
+    buyerFlag: false,
+    sellerFlag: false,
+  );
 
   @override
   void initState() {
     super.initState();
+    _loadUserAccount();
     _loadBooks();
   }
 
@@ -52,6 +57,26 @@ class _MainNavigationState extends State<MainNavigation> {
       setState(() {
         _booksLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadUserAccount() async {
+    final email = AuthService().getUserEmail();
+
+    if (email == null || email.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No signed-in user found')));
+      return;
+    }
+
+    try {
+      mainUserAccount = await DatabaseService().getUserByEmail(email);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load account: $e')));
+      return;
     }
   }
 
@@ -78,6 +103,33 @@ class _MainNavigationState extends State<MainNavigation> {
         style: TextStyle(
           color: isActive ? Colors.deepPurple : Colors.deepPurple.shade200,
         ),
+      ),
+    );
+  }
+
+  Future<void> _showAccountSheet(BuildContext context) async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => _AccountSheet(
+        user: mainUserAccount,
+        onLogout: () async {
+          Navigator.of(ctx).pop();
+          try {
+            await AuthService().signOut();
+          } catch (e) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Sign out failed: $e')));
+            return;
+          }
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Logged out')));
+          Navigator.of(context).pushReplacementNamed('/');
+        },
       ),
     );
   }
@@ -156,7 +208,14 @@ class _MainNavigationState extends State<MainNavigation> {
                   error: _booksError,
                   child: Container(
                     color: Colors.white,
-                    child: _screens[_selectedIndex],
+                    child: [
+                      LibraryScreen(userAccount: mainUserAccount),
+                      CommunityScreen(userAccount: mainUserAccount),
+                      MarketplaceScreen(
+                        userAccount: mainUserAccount,
+                        books: _books,
+                      ),
+                    ][_selectedIndex],
                   ),
                 ),
               ),
@@ -166,51 +225,6 @@ class _MainNavigationState extends State<MainNavigation> {
       },
     );
   }
-}
-
-Future<void> _showAccountSheet(BuildContext context) async {
-  final email = AuthService().getUserEmail();
-  if (email == null || email.isEmpty) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('No signed-in user found')));
-    return;
-  }
-
-  User user;
-  try {
-    user = await DatabaseService().getUserByEmail(email);
-  } catch (e) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Failed to load account: $e')));
-    return;
-  }
-
-  showModalBottomSheet(
-    context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
-    builder: (ctx) => _AccountSheet(
-      user: user,
-      onLogout: () async {
-        Navigator.of(ctx).pop();
-        try {
-          await AuthService().signOut();
-        } catch (e) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Sign out failed: $e')));
-          return;
-        }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Logged out')));
-        Navigator.of(context).pushReplacementNamed('/');
-      },
-    ),
-  );
 }
 
 class _AccountSheet extends StatelessWidget {

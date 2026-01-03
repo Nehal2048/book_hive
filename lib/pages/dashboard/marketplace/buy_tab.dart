@@ -1,4 +1,5 @@
 import 'package:book_hive/models/book.dart';
+import 'package:book_hive/models/user.dart';
 import 'package:book_hive/shared/shared_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:book_hive/pages/dashboard/marketplace/marketplace_widgets.dart';
@@ -7,7 +8,9 @@ import 'package:book_hive/services/auth_service.dart';
 import 'package:book_hive/models/listing.dart';
 
 class BuyTab extends StatefulWidget {
-  const BuyTab({super.key});
+  final List<Book> books;
+  final User? currentUser;
+  const BuyTab({super.key, required this.books, this.currentUser});
 
   @override
   State<BuyTab> createState() => _BuyTabState();
@@ -16,7 +19,6 @@ class BuyTab extends StatefulWidget {
 class _BuyTabState extends State<BuyTab> {
   final _databaseService = DatabaseService();
   final _authService = AuthService();
-
   late Future<List<Listing>> _listingsFuture;
   final Map<int, int> _cartItems = {}; // listing id -> quantity
   bool _isLoading = false;
@@ -35,24 +37,48 @@ class _BuyTabState extends State<BuyTab> {
       return;
     }
 
+    final allListings = await _listingsFuture;
+
+    final selectedListings = allListings
+        .where((listing) => _cartItems.containsKey(listing.id))
+        .toList();
+
+    final totalPrice = selectedListings.fold<double>(
+      0,
+      (sum, item) => sum + item.price,
+    );
+    if (totalPrice > widget.currentUser!.balance) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Insufficient balance. Please top up your account.'),
+        ),
+      );
+      return;
+    }
+
+    final shouldPay = await _showPaymentDialog(selectedListings, totalPrice);
+
+    if (!shouldPay) return;
+
     setState(() => _isLoading = true);
 
     try {
       final userEmail = _authService.getUserEmail();
 
-      for (final listingId in _cartItems.keys) {
-        await _databaseService.createOrder(listingId, userEmail ?? "");
+      for (final listing in selectedListings) {
+        await _databaseService.createOrder(listing.id, userEmail ?? "");
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Order confirmed! ${_cartItems.length} book(s) purchased.',
+              'Payment successful! ${selectedListings.length} book(s) purchased.',
             ),
             backgroundColor: Colors.green,
           ),
         );
+
         setState(() {
           _cartItems.clear();
           _listingsFuture = _databaseService.getListingsByType('sale');
@@ -72,6 +98,89 @@ class _BuyTabState extends State<BuyTab> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<bool> _showPaymentDialog(
+    List<Listing> selectedListings,
+    double totalPrice,
+  ) async {
+    final TextEditingController controller = TextEditingController();
+
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            return AlertDialog(
+              title: Text('Confirm Purchase'),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Books in your cart:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 8),
+                    ...selectedListings.map((listing) {
+                      return Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          '• ${widget.books.where((book) => book.isbn == listing.isbn).first.title} — Tk. ${listing.price.toStringAsFixed(2)}',
+                        ),
+                      );
+                    }),
+                    Divider(height: 24),
+                    Text(
+                      'Total: Tk. ${totalPrice.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple,
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Type "pay" to confirm payment:',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    SizedBox(height: 8),
+                    TextField(
+                      controller: controller,
+                      decoration: InputDecoration(
+                        hintText: 'Type pay',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (controller.text.trim().toLowerCase() == 'pay') {
+                      Navigator.pop(context, true);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Please type "pay" to proceed'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                  ),
+                  child: Text('Confirm'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   @override
@@ -142,10 +251,10 @@ class _BuyTabState extends State<BuyTab> {
                       shrinkWrap: true,
                       physics: NeverScrollableScrollPhysics(),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
+                        crossAxisCount: 2,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
-                        childAspectRatio: 0.75,
+                        childAspectRatio: 3,
                       ),
                       itemCount: listings.length,
                       itemBuilder: (context, index) {
@@ -174,16 +283,7 @@ class _BuyTabState extends State<BuyTab> {
                           },
                           child: Stack(
                             children: [
-                              MarketplaceCard(
-                                condition: listing.condition ?? "Good",
-                                price:
-                                    'Tk. ${listing.price.toStringAsFixed(2)}',
-                                status: listing.status ?? "",
-                                statusColor: listing.status == 'available'
-                                    ? Colors.green
-                                    : Colors.orange,
-                                book: book,
-                              ),
+                              MarketplaceCard(listing: listing),
                               if (isInCart)
                                 Positioned(
                                   top: 8,

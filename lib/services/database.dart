@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:book_hive/main.dart';
 import 'package:book_hive/models/book.dart';
+import 'package:book_hive/models/borrow.dart';
 import 'package:book_hive/models/user.dart';
 import 'package:book_hive/models/book_details.dart';
 import 'package:book_hive/models/review.dart';
@@ -85,6 +86,23 @@ class DatabaseService {
         : decoded;
     if (payload is Map) return Book.fromJson(payload.cast<String, dynamic>());
     throw Exception('Book not found');
+  }
+
+  Future<List<Book>> getOwnedBook(String email) async {
+    final uri = Uri.parse('$base/books/user-books/$email');
+    final res = await http.get(uri, headers: await headers0());
+    ensureSuccess(res);
+    final decoded = jsonDecode(res.body);
+    final payload = (decoded is Map && decoded['books'] != null)
+        ? decoded['books']
+        : decoded;
+    if (payload is List) {
+      return payload
+          .map<Book>((e) => Book.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    if (payload is Map) return [Book.fromJson(payload.cast<String, dynamic>())];
+    return <Book>[];
   }
 
   Future<Book> updateBook(
@@ -274,8 +292,6 @@ class DatabaseService {
     final uri = Uri.parse(
       '$base/books/$isbn/details/${Uri.encodeComponent(detail.edition)}',
     ).replace(queryParameters: params);
-
-    print(uri.toString());
 
     final res = await http.put(uri, headers: await headers0());
 
@@ -565,7 +581,7 @@ class DatabaseService {
     String? userId,
   }) async {
     final uri = Uri.parse(
-      '$base/listings/$listingId',
+      '$base/listings/edit/$listingId',
     ).replace(queryParameters: {'user_id': userId});
     final res = await http.put(
       uri,
@@ -585,7 +601,7 @@ class DatabaseService {
 
   Future<bool> deleteListing(int listingId, String? userId) async {
     final uri = Uri.parse(
-      '$base/listings/$listingId',
+      '$base/listings/delete/$listingId',
     ).replace(queryParameters: {'user_id': userId});
     final res = await http.delete(uri, headers: await headers0());
     ensureSuccess(res);
@@ -661,146 +677,79 @@ class DatabaseService {
   }
 
   // ============== BORROW APIS ==============
-  Future<bool> sendBorrowRequest(int targetId, String borrowerId) async {
-    final uri = Uri.parse('$base/borrow/request');
+  Future<bool> sendBorrowRequest(String myUserId, Listing listing) async {
+    final uri = Uri.parse(
+      '$base/borrow/',
+    ).replace(queryParameters: {'borrower_id': myUserId});
+
     final res = await http.post(
       uri,
       headers: await headers0(),
-      body: jsonEncode({'target_id': targetId, 'borrower_id': borrowerId}),
+      body: jsonEncode({'listing_id': listing.id}),
     );
+
     ensureSuccess(res);
     return true;
   }
 
-  Future<List<dynamic>> getReceivedBorrowRequests(String userId) async {
-    final uri = Uri.parse('$base/borrow/received/$userId');
-    final res = await http.get(uri, headers: await headers0());
-    ensureSuccess(res);
-    final decoded = jsonDecode(res.body);
-    return decoded is List ? decoded : [];
-  }
-
-  Future<List<dynamic>> getSentBorrowRequests(String userId) async {
-    final uri = Uri.parse('$base/borrow/sent/$userId');
-    final res = await http.get(uri, headers: await headers0());
-    ensureSuccess(res);
-    final decoded = jsonDecode(res.body);
-    return decoded is List ? decoded : [];
-  }
-
-  Future<bool> acceptBorrowRequest(int listingId, String lenderId) async {
-    final uri = Uri.parse(
-      '$base/borrow/accept/$listingId',
-    ).replace(queryParameters: {'lender_id': lenderId});
-    final res = await http.post(uri, headers: await headers0());
-    ensureSuccess(res);
-    return true;
-  }
-
-  Future<bool> rejectBorrowRequest(int listingId, String lenderId) async {
-    final uri = Uri.parse(
-      '$base/borrow/reject/$listingId',
-    ).replace(queryParameters: {'lender_id': lenderId});
-    final res = await http.post(uri, headers: await headers0());
-    ensureSuccess(res);
-    return true;
-  }
-
-  Future<bool> cancelBorrowRequest(int listingId, String borrowerId) async {
-    final uri = Uri.parse(
-      '$base/borrow/cancel/$listingId',
-    ).replace(queryParameters: {'borrower_id': borrowerId});
-    final res = await http.post(uri, headers: await headers0());
-    ensureSuccess(res);
-    return true;
-  }
-
-  Future<bool> returnBorrowedBook(int borrowId, String userId) async {
+  /// Return a borrowed book (mark returned and set return_date)
+  Future<bool> returnBorrow(String borrowId, String userId) async {
     final uri = Uri.parse(
       '$base/borrow/return/$borrowId',
     ).replace(queryParameters: {'user_id': userId});
+
     final res = await http.post(uri, headers: await headers0());
     ensureSuccess(res);
     return true;
   }
 
+  /// Get active borrows for a user. Returns a map with keys `borrowing` and `lending`.
   Future<Map<String, dynamic>> getActiveBorrows(String userId) async {
-    final uri = Uri.parse('$base/borrow/active/$userId');
+    final uri = Uri.parse(
+      '$base/borrow/active',
+    ).replace(queryParameters: {'user_id': userId});
+
     final res = await http.get(uri, headers: await headers0());
     ensureSuccess(res);
     final decoded = jsonDecode(res.body);
-    return decoded is Map ? decoded.cast<String, dynamic>() : {};
+    return decoded is Map<String, dynamic> ? decoded : {};
   }
 
-  Future<List<dynamic>> getBorrowHistory(String userId) async {
-    final uri = Uri.parse('$base/borrow/history/$userId');
+  /// Get only the list of active borrows where the user is the borrower.
+  Future<List<Borrow>> getActiveBorrowing(String userId) async {
+    final uri = Uri.parse(
+      '$base/borrow/active',
+    ).replace(queryParameters: {'user_id': userId});
+
     final res = await http.get(uri, headers: await headers0());
     ensureSuccess(res);
     final decoded = jsonDecode(res.body);
-    return decoded is List ? decoded : [];
+
+    final payload = (decoded is Map && decoded['borrowing'] != null)
+        ? decoded['borrowing']
+        : decoded;
+
+    if (payload is List) {
+      return payload
+          .map<Borrow>((e) => Borrow.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+
+    return <Borrow>[];
   }
 
   // ============== EXCHANGE APIS ==============
-  Future<bool> sendExchangeRequest(int targetId, int yourId) async {
-    final uri = Uri.parse('$base/exchange/request');
-    final res = await http.post(
-      uri,
-      headers: await headers0(),
-      body: jsonEncode({'target_id': targetId, 'your_id': yourId}),
+  Future<bool> sendExchangeRequest(String myUserId, Listing listing) async {
+    final uri = Uri.parse('$base/exchange/${listing.id}').replace(
+      queryParameters: {
+        'listing_id': listing.id.toString(),
+        'my_user_id': myUserId,
+      },
     );
-    ensureSuccess(res);
-    return true;
-  }
 
-  Future<List<dynamic>> getReceivedExchangeRequests(String userId) async {
-    final uri = Uri.parse('$base/exchange/received/$userId');
-    final res = await http.get(uri, headers: await headers0());
-    ensureSuccess(res);
-    final decoded = jsonDecode(res.body);
-    return decoded is List ? decoded : [];
-  }
-
-  Future<List<dynamic>> getSentExchangeRequests(String userId) async {
-    final uri = Uri.parse('$base/exchange/sent/$userId');
-    final res = await http.get(uri, headers: await headers0());
-    ensureSuccess(res);
-    final decoded = jsonDecode(res.body);
-    return decoded is List ? decoded : [];
-  }
-
-  Future<bool> acceptExchangeRequest(int listingId, String userId) async {
-    final uri = Uri.parse(
-      '$base/exchange/accept/$listingId',
-    ).replace(queryParameters: {'user_id': userId});
     final res = await http.post(uri, headers: await headers0());
     ensureSuccess(res);
     return true;
-  }
-
-  Future<bool> rejectExchangeRequest(int listingId, String userId) async {
-    final uri = Uri.parse(
-      '$base/exchange/reject/$listingId',
-    ).replace(queryParameters: {'user_id': userId});
-    final res = await http.post(uri, headers: await headers0());
-    ensureSuccess(res);
-    return true;
-  }
-
-  Future<bool> cancelExchangeRequest(int yourListingId, String userId) async {
-    final uri = Uri.parse(
-      '$base/exchange/cancel/$yourListingId',
-    ).replace(queryParameters: {'user_id': userId});
-    final res = await http.post(uri, headers: await headers0());
-    ensureSuccess(res);
-    return true;
-  }
-
-  Future<List<dynamic>> getUserExchanges(String userId) async {
-    final uri = Uri.parse('$base/exchange/user/$userId');
-    final res = await http.get(uri, headers: await headers0());
-    ensureSuccess(res);
-    final decoded = jsonDecode(res.body);
-    return decoded is List ? decoded : [];
   }
 
   // ============== ORDERS APIS ==============

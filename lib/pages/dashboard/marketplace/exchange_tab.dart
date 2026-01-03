@@ -1,9 +1,9 @@
 import 'package:book_hive/models/book.dart';
+import 'package:book_hive/services/auth_service.dart';
 import 'package:book_hive/shared/shared_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:book_hive/pages/dashboard/marketplace/marketplace_widgets.dart';
 import 'package:book_hive/services/database.dart';
-import 'package:book_hive/services/auth_service.dart';
 import 'package:book_hive/models/listing.dart';
 
 class ExchangeTab extends StatefulWidget {
@@ -15,42 +15,13 @@ class ExchangeTab extends StatefulWidget {
 
 class _ExchangeTabState extends State<ExchangeTab> {
   final _databaseService = DatabaseService();
-  final _authService = AuthService();
 
   late Future<List<Listing>> _exchangeListingsFuture;
-  late Future<List<dynamic>> _userExchangesFuture;
 
   @override
   void initState() {
     super.initState();
     _exchangeListingsFuture = _databaseService.getListingsByType('exchange');
-    _userExchangesFuture = _databaseService.getUserExchanges(
-      _authService.getUserEmail() ?? "",
-    );
-  }
-
-  Future<void> _sendExchangeRequest(int listingId) async {
-    try {
-      final userEmail = _authService.getUserEmail();
-      await _databaseService.sendExchangeRequest(listingId, userEmail.hashCode);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Exchange request sent!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   @override
@@ -69,11 +40,6 @@ class _ExchangeTabState extends State<ExchangeTab> {
             'Swap books with other readers',
             style: TextStyle(color: Colors.grey[600]),
           ),
-          SizedBox(height: 24),
-          Text(
-            'Available for Exchange',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
           SizedBox(height: 16),
           FutureBuilder<List<Listing>>(
             future: _exchangeListingsFuture,
@@ -85,7 +51,12 @@ class _ExchangeTabState extends State<ExchangeTab> {
                 return Center(child: Text('Error: ${snapshot.error}'));
               }
 
-              final listings = snapshot.data ?? [];
+              List<Listing> listings =
+                  snapshot.data
+                      ?.where((element) => element.status == 'available')
+                      .toList() ??
+                  [];
+
               if (listings.isEmpty) {
                 return Center(
                   child: Padding(
@@ -102,27 +73,27 @@ class _ExchangeTabState extends State<ExchangeTab> {
                 shrinkWrap: true,
                 physics: NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
+                  crossAxisCount: 2,
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
-                  childAspectRatio: 0.75,
+                  childAspectRatio: 3,
                 ),
                 itemCount: listings.length,
                 itemBuilder: (context, index) {
                   final listing = listings[index];
 
-                  Book? book = findBookByIsbn([], listing.isbn ?? "", context)!;
-                  // Book? requesting = findBookByIsbn([], listing.requestId , context)!;
+                  Book? desiredBook = findBookByIsbn(
+                    [],
+                    listing.desired_book!,
+                    context,
+                  )!;
+
+                  Book? mainBook = findBookByIsbn([], listing.isbn!, context)!;
 
                   return GestureDetector(
-                    onTap: () => _sendExchangeRequest(listing.id),
-                    child: MarketplaceCard(
-                      condition: listing.condition ?? "",
-                      price: 'For Trade',
-                      status: 'Requesting: ${listing.requestId ?? 'Any'}',
-                      statusColor: Colors.orange,
-                      book: book,
-                    ),
+                    onTap: () =>
+                        _sendExchangeRequest(listing, mainBook, desiredBook),
+                    child: MarketplaceCard(listing: listing),
                   );
                 },
               );
@@ -130,6 +101,85 @@ class _ExchangeTabState extends State<ExchangeTab> {
           ),
         ],
       ),
+    );
+  }
+
+  void _sendExchangeRequest(Listing listing, Book mainBook, Book desiredBook) {
+    showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Confirm Exchange'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'You Give:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '${desiredBook.title} by ${desiredBook.author}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+                Divider(height: 24),
+                Text(
+                  'You Gain:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '${mainBook.title} by ${mainBook.author}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+                SizedBox(height: 16),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  DatabaseService().sendExchangeRequest(
+                    AuthService().getUserEmail() ?? "",
+                    listing,
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Exchange Successful!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                } finally {
+                  Navigator.pop(context, true);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+              ),
+              child: Text('Confirm Exchange'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

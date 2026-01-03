@@ -220,10 +220,8 @@ class _AddPageState extends State<AddPage> {
   }
 
   void _submit() async {
-    print("123");
     if (!_formKey.currentState!.validate()) return;
 
-    print("2");
     setState(() => _submitting = true);
     try {
       final title = _titleCtrl.text.trim();
@@ -248,7 +246,6 @@ class _AddPageState extends State<AddPage> {
         publishedYear: year,
       );
 
-      print("4");
       // Upload or update book only (editions are handled separately)
       final db = DatabaseService();
       if (_isEditMode) {

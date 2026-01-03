@@ -207,7 +207,7 @@ class _AddListingPageState extends State<AddListingPage> {
           setState(() => _isLoading = false);
           return;
         }
-        listingData['request_id'] = _selectedExchangeIsbn;
+        listingData['desired_book'] = _selectedExchangeIsbn;
       }
 
       if (widget.existingListing != null) {
@@ -443,45 +443,49 @@ class _AddListingPageState extends State<AddListingPage> {
                 ),
               SizedBox(height: 24),
               // Listing Type Dropdown
-              DropdownButtonFormField<String>(
-                value: _selectedListingType,
-                decoration: InputDecoration(
-                  labelText: 'Listing Type',
-                  prefixIcon: Icon(Icons.category),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                ),
-                hint: Text('Select listing type'),
-                items: _listingTypes.map((type) {
-                  return DropdownMenuItem(
-                    value: type,
-                    child: Text(type[0].toUpperCase() + type.substring(1)),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedListingType = value;
-                    // Reset exchange fields when changing listing type
-                    if (value != 'exchange') {
-                      _selectedExchangeBook = null;
-                      _selectedExchangeIsbn = null;
-                      _exchangeSearchController.clear();
-                      _exchangeSearchResults = [];
-                    }
-                  });
-                },
-                validator: (value) {
-                  if (value == null) {
-                    return 'Please select a listing type';
-                  }
-                  return null;
-                },
-              ),
+              (widget.existingListing != null)
+                  ? Text("Listing Type: ${widget.existingListing!.listingType}")
+                  : DropdownButtonFormField<String>(
+                      value: _selectedListingType,
+                      decoration: InputDecoration(
+                        labelText: 'Listing Type',
+                        prefixIcon: Icon(Icons.category),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                      hint: Text('Select listing type'),
+                      items: _listingTypes.map((type) {
+                        return DropdownMenuItem(
+                          value: type,
+                          child: Text(
+                            type[0].toUpperCase() + type.substring(1),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedListingType = value;
+                          // Reset exchange fields when changing listing type
+                          if (value != 'exchange') {
+                            _selectedExchangeBook = null;
+                            _selectedExchangeIsbn = null;
+                            _exchangeSearchController.clear();
+                            _exchangeSearchResults = [];
+                          }
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null) {
+                          return 'Please select a listing type';
+                        }
+                        return null;
+                      },
+                    ),
               SizedBox(height: 16),
               // Exchange Book Selection (only shown when listing type is 'exchange')
               if (_selectedListingType == 'exchange') ...[

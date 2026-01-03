@@ -9,7 +9,7 @@ const apiCallLinkProduction = "https://bookhive-backend-7t8w.onrender.com";
 const apiKeySupabase =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoYnRqeHNndWhjZG5xdmN6cnBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyNDEzOTEsImV4cCI6MjA4MTgxNzM5MX0.z3gURlkh5xytXwen45fX8Kr6DH9kNzu60eiyeesrWbc";
 const apiKeyAI =
-    "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";
+    "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";
 
 EdgeInsetsGeometry pageMargin = const EdgeInsets.all(15);
 EdgeInsetsGeometry marginListTile = const EdgeInsets.all(15);

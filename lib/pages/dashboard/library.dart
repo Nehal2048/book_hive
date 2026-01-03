@@ -1,17 +1,17 @@
+import 'package:book_hive/models/user.dart';
 import 'package:book_hive/services/database.dart';
 import 'package:flutter/material.dart';
 
 import 'package:book_hive/models/book.dart';
 import 'package:book_hive/models/book_details.dart';
-import 'package:book_hive/trash/testData.dart';
-import 'package:book_hive/pages/misc/pdf_reader_screen.dart';
-import 'package:book_hive/pages/misc/audiobook_screen.dart';
 import 'package:book_hive/pages/misc/IndividualBook.dart';
 import 'package:book_hive/pages/misc/AddPage.dart';
 import 'package:book_hive/main_navigation.dart';
 
 class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({super.key});
+  final User userAccount;
+
+  const LibraryScreen({super.key, required this.userAccount});
 
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
@@ -193,7 +193,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             itemCount: books.length,
                             itemBuilder: (context, index) {
                               final book = books[index];
-                              return _BookCard(book: book);
+                              return BookCard(
+                                book: book,
+                                user: widget.userAccount,
+                              );
                             },
                           );
                   },
@@ -255,10 +258,11 @@ class _FilterDropdown extends StatelessWidget {
   }
 }
 
-class _BookCard extends StatelessWidget {
+class BookCard extends StatelessWidget {
   final Book book;
+  final User user;
 
-  const _BookCard({required this.book});
+  const BookCard({super.key, required this.book, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -345,45 +349,46 @@ class _BookCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      List<BookDetails> details;
-                      try {
-                        details = await DatabaseService().getBookDetails(
-                          book.isbn,
-                        );
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Book editions not found: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        details = [];
-                      }
+                  if (user.userType == 'admin')
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        List<BookDetails> details;
+                        try {
+                          details = await DatabaseService().getBookDetails(
+                            book.isbn,
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Book editions not found: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          details = [];
+                        }
 
-                      final result = await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              AddPage(bookToEdit: book, oldEditions: details),
-                        ),
-                      );
-                      if (result != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Book updated successfully'),
-                            backgroundColor: Colors.green,
+                        final result = await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                AddPage(bookToEdit: book, oldEditions: details),
                           ),
                         );
-                      }
-                    },
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Edit'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
+                        if (result != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Book updated successfully'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Edit'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ],

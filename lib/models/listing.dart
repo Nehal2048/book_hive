@@ -7,9 +7,7 @@ class Listing {
   final String? condition;
   final String? isbn;
   final String? sellerId;
-  final bool requestFlag;
-  final int? requestId;
-  final String? requestType;
+  final String? desired_book;
 
   Listing({
     required this.id,
@@ -20,9 +18,7 @@ class Listing {
     this.condition,
     this.isbn,
     this.sellerId,
-    required this.requestFlag,
-    this.requestId,
-    this.requestType,
+    this.desired_book,
   });
 
   /// Creates a Listing instance from a JSON map
@@ -38,9 +34,7 @@ class Listing {
       condition: json['condition'] as String?,
       isbn: json['isbn'] as String?,
       sellerId: json['seller_id'] as String?,
-      requestFlag: json['request_flag'] as bool? ?? false,
-      requestId: json['request_id'] as int?,
-      requestType: json['request_type'] as String?,
+      desired_book: json['desired_book'] as String?,
     );
   }
 
@@ -55,9 +49,7 @@ class Listing {
       'condition': condition,
       'isbn': isbn,
       'seller_id': sellerId,
-      'request_flag': requestFlag,
-      'request_id': requestId,
-      'request_type': requestType,
+      'desired_book': desired_book,
     };
   }
 
@@ -65,6 +57,6 @@ class Listing {
   String toString() {
     return 'Listing(id: $id, price: $price, status: $status, createdAt: $createdAt, '
         'listingType: $listingType, condition: $condition, isbn: $isbn, sellerId: $sellerId, '
-        'requestFlag: $requestFlag, requestId: $requestId, requestType: $requestType)';
+        'desired_book: $desired_book)';
   }
 }

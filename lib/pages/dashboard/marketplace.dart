@@ -1,13 +1,20 @@
+import 'package:book_hive/models/book.dart';
+import 'package:book_hive/models/user.dart';
 import 'package:flutter/material.dart';
-import 'package:book_hive/pages/misc/add_listing.dart';
-import 'package:book_hive/main_navigation.dart';
 import 'package:book_hive/pages/dashboard/marketplace/buy_tab.dart';
 import 'package:book_hive/pages/dashboard/marketplace/my_listing.dart';
 import 'package:book_hive/pages/dashboard/marketplace/exchange_tab.dart';
 import 'package:book_hive/pages/dashboard/marketplace/borrow_tab.dart';
 
 class MarketplaceScreen extends StatefulWidget {
-  const MarketplaceScreen({super.key});
+  final User userAccount;
+  final List<Book> books;
+
+  const MarketplaceScreen({
+    super.key,
+    required this.userAccount,
+    required this.books,
+  });
 
   @override
   State<MarketplaceScreen> createState() => _MarketplaceScreenState();
@@ -46,39 +53,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen>
           ),
         ),
         Expanded(
-          child: Stack(
+          child: TabBarView(
+            controller: _tabController,
             children: [
-              TabBarView(
-                controller: _tabController,
-                children: [BuyTab(), ExchangeTab(), BorrowTab(), MyListing()],
-              ),
-              Positioned(
-                bottom: 24,
-                right: 24,
-                child: FloatingActionButton(
-                  onPressed: () async {
-                    final booksProvider = BooksProvider.of(context);
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            AddListingPage(books: booksProvider.books),
-                      ),
-                    );
-                    if (result != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Listing added successfully!'),
-                          backgroundColor: Colors.green,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  },
-                  backgroundColor: Colors.deepPurple,
-                  child: Icon(Icons.add),
-                ),
-              ),
+              BuyTab(books: widget.books, currentUser: widget.userAccount),
+              ExchangeTab(),
+              BorrowTab(),
+              MyListing(userAccount: widget.userAccount),
             ],
           ),
         ),

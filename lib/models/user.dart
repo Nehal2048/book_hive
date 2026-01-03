@@ -18,17 +18,7 @@ class User {
     this.sellerFlag = true,
     this.balance = 0.0,
   }) : joinDate = joinDate ?? DateTime.now(),
-       userType = userType {
-    if (email.isEmpty) {
-      throw ArgumentError('email is mandatory');
-    }
-    if (name.isEmpty) {
-      throw ArgumentError('name is mandatory');
-    }
-    if (!allowedUserTypes.contains(this.userType)) {
-      throw ArgumentError("user_type must be one of: 'admin', 'regular'");
-    }
-  }
+       userType = userType;
 
   factory User.fromJson(Map<String, dynamic> json) {
     final dynamic jt = json['join_date'];

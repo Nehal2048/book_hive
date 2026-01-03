@@ -63,7 +63,6 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
       // Set the audio source and load it
       await _audioPlayer.setUrl(widget.bookDetails.audioUrl);
     } catch (e) {
-      print('Error initializing player: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
