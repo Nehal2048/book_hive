@@ -1,6 +1,7 @@
 import 'package:book_hive/main_navigation.dart';
 import 'package:book_hive/pages/misc/review_tile.dart';
 import 'package:book_hive/shared/const.dart';
+import 'package:book_hive/shared/keys.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:book_hive/models/book.dart';
@@ -201,12 +202,9 @@ class _IndividualBookState extends State<IndividualBook> {
 
     try {
       final summary = await aiService.generateReport(widget.book);
-      print(summary);
       setState(() {
         _aiReport = summary;
       });
-    } catch (e) {
-      print("Error: $e");
     } finally {
       setState(() {
         _generating = false;

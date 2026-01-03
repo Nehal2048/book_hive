@@ -2,6 +2,7 @@ import 'package:book_hive/main_navigation.dart';
 import 'package:book_hive/pages/sign_up.dart';
 import 'package:book_hive/services/auth_gate.dart';
 import 'package:book_hive/shared/const.dart';
+import 'package:book_hive/shared/keys.dart';
 import 'package:flutter/material.dart';
 import 'package:book_hive/pages/sign_in.dart';
 import 'package:book_hive/services/app_controller.dart';
